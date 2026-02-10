@@ -8,14 +8,134 @@
             margin: 0;
             overflow: hidden;
             background: black;
+            font-family: Arial, sans-serif;
         }
         canvas {
             display: block;
         }
+        
+        #roomPanel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #fff;
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            min-width: 250px;
+        }
+        
+        #roomPanel h2 {
+            color: #fff;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .room-input-group {
+            margin-bottom: 15px;
+        }
+        
+        .room-input-group label {
+            display: block;
+            color: #fff;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        #roomInput, #joinRoomInput {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #666;
+            background: #222;
+            color: #fff;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 12px;
+        }
+        
+        #roomInput:focus, #joinRoomInput:focus {
+            outline: none;
+            border-color: #fff;
+            background: #333;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 10px;
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #555;
+            border-color: #fff;
+        }
+        
+        button:active {
+            background: #666;
+        }
+        
+        #createBtn {
+            background: #2d5016;
+        }
+        
+        #createBtn:hover {
+            background: #3a6b1f;
+        }
+        
+        #joinBtn {
+            background: #1a3a52;
+        }
+        
+        #joinBtn:hover {
+            background: #2a5070;
+        }
+        
+        #roomStatus {
+            color: #aaa;
+            font-size: 11px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #555;
+        }
     </style>
 </head>
 <body>
+    <div id="roomPanel">
+        <h2>🎮 Stanze</h2>
+        
+        <div class="room-input-group">
+            <label for="roomInput">Crea stanza:</label>
+            <input type="text" id="roomInput" placeholder="Nome stanza..." maxlength="32">
+            <button id="createBtn">Crea</button>
+        </div>
+        
+        <div class="room-input-group">
+            <label for="joinRoomInput">Entra in stanza:</label>
+            <input type="text" id="joinRoomInput" placeholder="ID stanza..." maxlength="32">
+            <button id="joinBtn">Entra</button>
+        </div>
+        
+        <div id="roomStatus">Disconnesso</div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script type="module" src="src/main.js"></script>
 </body>
 </html>
