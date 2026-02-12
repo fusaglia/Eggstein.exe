@@ -1,5 +1,6 @@
 import BootScene from './scenes/BootScene.js';
 
+const imageCache = new Map();
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
