@@ -6,10 +6,17 @@ import { startConnection } from './WebSocketClient.js';
 
 // Generazione ID utente persistente
 let userId = localStorage.getItem("userId");
+let userName = localStorage.getItem("userName");
 
 if (!userId) {
   // genera un ID unico e sicuro con timestamp
   userId = generateUUID() + "-" + Date.now();
+  localStorage.setItem("userId", userId);
+}
+
+if (!userId) {
+  // genera un ID unico e sicuro con timestamp
+  userName = userId.substring(0,10);
   localStorage.setItem("userId", userId);
 }
 
