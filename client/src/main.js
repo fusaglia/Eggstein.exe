@@ -1,5 +1,6 @@
 import BootScene from './scenes/BootScene.js';
 import './WebSocketClient.js';
+import { startConnection } from './WebSocketClient.js';
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -8,14 +9,14 @@ let userId = localStorage.getItem("userId");
 
 if (!userId) {
   // genera un ID unico e sicuro con timestamp
-  userId = ${crypto.randomUUID()};
+  userId = generateUUID() + "-" + Date.now();
   localStorage.setItem("userId", userId);
 }
 
 console.log("UserID locale:", userId);
 
 // Connessione al server
-// const socket = io(); (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
+const socket = startConnection(); // (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
 
 // Schermate
 const lobbyScreen = document.getElementById("lobbyScreen");
@@ -54,3 +55,16 @@ const game = new Phaser.Game(config);
 window.addEventListener('resize', () => {
     game.scale.resize(window.innerWidth, window.innerHeight);
 });
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// funzioni utility
+  function generateUUID() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }
+    );
+  }
