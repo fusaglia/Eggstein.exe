@@ -29,7 +29,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 
 ### 🟢 Messaggi Client → Server (10N)
 | Codice | Descrizione |
-|--------|-------------|ù
+|--------|-------------|
 | **101**|`<userId>`, `<userName>`|
 
 ---
