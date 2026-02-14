@@ -8,16 +8,21 @@ import { startConnection } from './WebSocketClient.js';
 let userId = localStorage.getItem("userId");
 let userName = localStorage.getItem("userName");
 
-if (!userId) {
+if (!userId||userId=="") {
   // genera un ID unico e sicuro con timestamp
   userId = generateUUID() + "-" + Date.now();
   localStorage.setItem("userId", userId);
 }
 
-if (!userId) {
+if (!userName||userName=="") {
   // genera un ID unico e sicuro con timestamp
-  userName = userId.substring(0,10);
-  localStorage.setItem("userId", userId);
+  userName = "User"+userId.substring(0,10);
+  localStorage.setItem("userName", userName);
+}
+
+if (userName==userId.substring(0,10))
+{
+
 }
 
 console.log("UserID locale:", userId);
@@ -46,7 +51,7 @@ function showScreen(screen) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 const imageCache = new Map();
 const config = {
     type: Phaser.AUTO,
@@ -62,7 +67,7 @@ const game = new Phaser.Game(config);
 window.addEventListener('resize', () => {
     game.scale.resize(window.innerWidth, window.innerHeight);
 });
-
+*/
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // funzioni utility
   function generateUUID() {
@@ -75,3 +80,18 @@ window.addEventListener('resize', () => {
       }
     );
   }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DEBUG
+const cancUserNameBtn = document.getElementById("cancUserNameBtn")
+const cancUserIdBtn = document.getElementById("cancUserIdBtn")
+
+cancUserIdBtn.addEventListener("click", (event)=> {
+userId = "";
+localStorage.removeItem("userId")
+})
+
+cancUserNameBtn.addEventListener("click", (event)=> {
+userName = "";
+localStorage.removeItem("userName")
+})

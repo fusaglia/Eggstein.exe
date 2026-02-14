@@ -1,8 +1,12 @@
 body {
   margin: 0;
   overflow: hidden;
-  background: black;
+  background: white;
   font-family: Arial, sans-serif;
+}
+
+body * {
+  background: #aaa;
 }
 canvas {
   display: block;
