@@ -27,5 +27,5 @@ server.listen(PORT, () => {
 
 io.on("connection", (socket) => {
     console.log("Un negro è entrato", socket.id);
-    socket.emit("")
+    socket.emit("001", "ciao negro! mandami il tuo UserID e il tuo nome utente");
 });

@@ -23,6 +23,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 ### 🔵 Messaggi Server → Client (00N)
 | Codice | Descrizione |
 |--------|-------------|
+| **001**|`ciao negro! mandami il tuo UserID e il tuo nome utente`|
 
 ---
 
