@@ -47,11 +47,10 @@ io.on("connection", (socket) => {
                 {
                     userName:userName,
                     userId:userId,
-                    socketId:socket.id,
                     socket:socket
                 }
             );
-            utility.handleReconnction(userId);
+            utility.handleReconnection(userId);
         }
         else
         {
@@ -59,7 +58,6 @@ io.on("connection", (socket) => {
                 {
                     userName:userName,
                     userId:userId,
-                    socketId:socket.id,
                     socket:socket
                 }
             );
