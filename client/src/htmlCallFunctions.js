@@ -7,8 +7,6 @@ export const visual = {
     userIdWarning: document.getElementById("userIdWarning"),
     userNameChoosingScreen: document.getElementById("userNameChoosingScreen"),
   },
-
-  showUserNameChosingCard: function () {},
   showScreen: function (screen) {
     Object.values(this.screens).forEach(s => {
         s.classList.add("hidden");

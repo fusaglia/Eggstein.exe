@@ -24,6 +24,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | Codice | Descrizione |
 |--------|-------------|
 | **001**|`ciao negro! mandami il tuo UserID e il tuo UserName`|
+| **002**|`mandami subito il tuo oldSocketId ebreo`|
 
 ---
 
@@ -31,13 +32,14 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | Codice | Descrizione |
 |--------|-------------|
 | **101**|`<userId>`, `<userName>`|
+| **102**|`localStorage.getItem("oldSocketId")`|
 
 ---
 
 ### 🔴 Errori Server (20N)
 | Codice | Descrizione |
 |--------|-------------|
-| **201**|`blud il tuo userId è uguale ad un altra persona`|
+| **201**|`blud cambia il tuo userId`|
 
 ### 🟠 Errori Client (30N)
 | Codice | Descrizione |

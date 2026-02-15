@@ -43,42 +43,48 @@ io.on("connection", (socket) => {
   socket.emit("001");
 
   socket.on("101", (userId, userName) => {
-    console.log("messaggio 101 ricevuto da socket" + socket.id);
+    console.log("messaggio 101 ricevuto da socket: " + socket.id);
     //se uno user con lo stesso userId si è gia collegato in precendeza
     if (users.has(userId)) {
       const user = users.get(userId);
       //se questo user gia collegaco è online
       if (user.isOnline) {
         //ping in attesa di risposta
-        user.socket
-          .timeout(3000)
-          .emit("hey negro, ci sei ancora?", (err, response) => {
-            //se lo user non risponde
-            if (err) {
-              //se il client appena collegato ha sia lo stesso userId che lo stesso userName
-              if (user.userName == userName) {
-                console.log(
-                  "lo user " +
-                    user.userId +
-                    " | " +
-                    user.userName +
-                    " si è riconnesso",
-                );
-                users.set(userId, {
-                  userName: userName,
-                  userId: userId,
-                  socket: socket,
-                  isOnline: true,
-                });
-                socket.userId = userId;
-                utility.handleReconnection(userId);
-              } else {
-                //è un user diverso con lo stesso userId
-                //dice allo user di cambiare userId
-                socket.emit("201");
-              }
-            }
-          });
+        user.socket.timeout(3000).emit("hey negro, ci sei ancora?", (err) => {
+          //se lo user non risponde
+          if (err) {
+            socket.emit("002", () => {
+              socket.on("202", (socketId) => {
+                if (user.socket.id == socketId) {
+                  console.log(
+                    "lo user " +
+                      user.userId +
+                      " | " +
+                      user.userName +
+                      " si è riconnesso",
+                  );
+                  users.set(userId, {
+                    userName: userName,
+                    userId: userId,
+                    socket: socket,
+                    isOnline: true,
+                  });
+                  socket.userId = userId;
+                  utility.handleReconnection(userId);
+                } else {
+                  //è un user diverso con lo stesso userId
+                  //dice allo user di cambiare userId
+                  socket.emit("201");
+                }
+              });
+            });
+            //se il client appena collegato ha sia lo stesso userId che lo stesso userName
+          }
+          else 
+          {
+            socket.emit("201")
+          }
+        });
       } else {
         //se lo user non è online
         //se il client appena collegato ha sia lo stesso userId che lo stesso userName
@@ -118,6 +124,9 @@ io.on("connection", (socket) => {
   });
   socket.on("disconnect", (reason) => {
     //messaggio di disconnessione da parte del client
+    if (!users.has(socket.userId)) {
+      return;
+    }
     const user = users.get(socket.userId);
     console.log(
       "the user " +
