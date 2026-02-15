@@ -36,6 +36,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 
 ### 🔴 Errori Server (20N)
 | Codice | Descrizione |
+| **201**|`blud, il tuo userId è uguale ad un altra persona`|
 
 ### 🟠 Errori Client (30N)
 | Codice | Descrizione |

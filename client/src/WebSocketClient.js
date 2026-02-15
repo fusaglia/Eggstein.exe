@@ -1,4 +1,4 @@
-
+import { utility } from './utilityFunctions.js';
 export function startConnection() {
   // Connessione al server
   const socket = io();
@@ -6,5 +6,12 @@ export function startConnection() {
     console.log("messaggio 001 ricevuto");
     socket.emit("101", localStorage.getItem("userId"), localStorage.getItem("userName"))
   });
+  socket.on("201", () =>{
+    //cambia userId
+    utility.generateUser();
+    socket.emit("101", localStorage.getItem("userId"), localStorage.getItem("userName"))
+  })
+
+  
   return socket;
 }

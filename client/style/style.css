@@ -113,3 +113,11 @@ button:active {
   padding-top: 10px;
   border-top: 1px solid #555;
 }
+
+.visible {
+  visibility: visible;
+}
+
+.hidden {
+    visibility: hidden;
+}
