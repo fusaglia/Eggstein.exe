@@ -2,7 +2,6 @@ import express, { response } from "express";
 import http from "http";
 import { Server } from "socket.io";
 import path from "path";
-import { to } from "mathjs";
 import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
 
@@ -50,39 +49,28 @@ io.on("connection", (socket) => {
       //se questo user gia collegaco è online
       if (user.isOnline) {
         //ping in attesa di risposta
-        user.socket.timeout(3000).emit("hey negro, ci sei ancora?", (err) => {
+        user.socket.timeout(3000).emit("002", (err) => {
           //se lo user non risponde
           if (err) {
-            socket.emit("002", () => {
-              socket.on("202", (socketId) => {
-                if (user.socket.id == socketId) {
-                  console.log(
-                    "lo user " +
-                      user.userId +
-                      " | " +
-                      user.userName +
-                      " si è riconnesso",
-                  );
-                  users.set(userId, {
-                    userName: userName,
-                    userId: userId,
-                    socket: socket,
-                    isOnline: true,
-                  });
-                  socket.userId = userId;
-                  utility.handleReconnection(userId);
-                } else {
-                  //è un user diverso con lo stesso userId
-                  //dice allo user di cambiare userId
-                  socket.emit("201");
-                }
-              });
+            console.log(
+              "lo user " +
+              user.userId +
+              " | " +
+              user.userName +
+              " si è riconnesso",
+            );
+            users.set(userId, {
+              userName: userName,
+              userId: userId,
+              socket: socket,
+              isOnline: true,
             });
-            //se il client appena collegato ha sia lo stesso userId che lo stesso userName
+            socket.userId = userId;
+            utility.handleReconnection(userId);
           }
-          else 
-          {
-            socket.emit("201")
+          else {
+            socket.emit("201");
+            console.log("messaggio 201 mandato");
           }
         });
       } else {
@@ -91,10 +79,10 @@ io.on("connection", (socket) => {
         if (user.userName == userName) {
           console.log(
             "lo user " +
-              user.userId +
-              " | " +
-              user.userName +
-              " si è riconnesso",
+            user.userId +
+            " | " +
+            user.userName +
+            " si è riconnesso",
           );
           users.set(userId, {
             userName: userName,
@@ -106,8 +94,8 @@ io.on("connection", (socket) => {
           utility.handleReconnection(userId);
         } else {
           //è un user diverso con lo stesso userId
-          //dice allo user di cambiare userId
           socket.emit("201");
+          console.log("messaggio 201 mandato");
         }
       }
     } else {
@@ -130,12 +118,13 @@ io.on("connection", (socket) => {
     const user = users.get(socket.userId);
     console.log(
       "the user " +
-        user.userId +
-        " | " +
-        user.userName +
-        " disconnected because of " +
-        reason,
+      user.userId +
+      " | " +
+      user.userName +
+      " disconnected because of " +
+      reason,
     );
     users.get(socket.userId).isOnline = false;
+
   });
 });

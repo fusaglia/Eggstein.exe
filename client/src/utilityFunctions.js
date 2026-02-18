@@ -9,14 +9,24 @@ export const utility = {
       },
     );
   },
+  // ^ in case crypto.randomUUID() is not supported, but it should be in modern browsers
+
   generateUser: function () {
     let userId = localStorage.getItem("userId");
     let userName = localStorage.getItem("userName");
     if (!userId || userId == "") {
-      userId = this.generateUUID();
+      console.log("generazione userId");
+      //userId deve essere unico, generato con crypto.randomUUID()
+      try {
+        userId = crypto.randomUUID();
+      } catch (error) {
+        console.log("crypto.randomUUID() non supportato, generazione UUID alternativa");
+        userId = this.generateUUID();
+      }
     }
-    if (!userName || userName == userId.substring(0, 10)) {
-      userName = userId.substring(0, 10);
+    if (!userName) {
+      console.log("generazione userName");
+      userName = "user" + userId.substring(0, 10);
       localStorage.setItem("userName", userName);
     }
     localStorage.setItem("userId", userId);

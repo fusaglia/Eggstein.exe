@@ -51,6 +51,7 @@ const cancUserIdBtn = document.getElementById("cancUserIdBtn");
 cancUserIdBtn.addEventListener("click", (event) => {
   userId = "";
   localStorage.removeItem("userId");
+  //localStorage.removeItem("userName");
 });
 
 cancUserNameBtn.addEventListener("click", (event) => {
@@ -60,7 +61,10 @@ cancUserNameBtn.addEventListener("click", (event) => {
 
 function generateUser() {
   utility.generateUser();
-  if (userName == userId.substring(0, 10)) {
+  if (userId && userName == "user" + userId.substring(0, 10)) {
     visual.showScreen(visual.screens.userNameChoosingScreen);
   }
+  // Ricarica i valori dopo generateUser() li ha impostati
+  userId = localStorage.getItem("userId");
+  userName = localStorage.getItem("userName");
 }

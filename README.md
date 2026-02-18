@@ -24,7 +24,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | Codice | Descrizione |
 |--------|-------------|
 | **001**|`ciao negro! mandami il tuo UserID e il tuo UserName`|
-| **002**|`mandami subito il tuo oldSocketId ebreo`|
+| **002**|`ping`|
+
 
 ---
 
@@ -32,7 +33,6 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | Codice | Descrizione |
 |--------|-------------|
 | **101**|`<userId>`, `<userName>`|
-| **102**|`localStorage.getItem("oldSocketId")`|
 
 ---
 
