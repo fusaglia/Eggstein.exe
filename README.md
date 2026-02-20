@@ -1,8 +1,4 @@
 # 🥚 Eggstein.exe
-
-
-npx http-server .
-
 ---
 
 ## 📡 Struttura dei Codici Messaggi
