@@ -1,30 +1,31 @@
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
+export const socketFuncions = {
+  socket: null,
+  startConnection: function () {
+    // Connessione al server
+    const tSocket = io();
+    tSocket.on("connect", () => {
+      localStorage.setItem("oldSocketId", tSocket.id);
+      console.log("socketId: " + tSocket.id);
 
-export function startConnection() {
-  // Connessione al server
-  const socket = io();
-  socket.on("connect", () => {
-    localStorage.setItem("oldSocketId", socket.id);
-    console.log("socketId: " + socket.id);
+      /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      tSocket.on("001", () => {
+        console.log("messaggio 001 ricevuto");
+        tSocket.emit(
+          "101",
+          localStorage.getItem("userId"),
+          localStorage.getItem("userName"),
+        );
+        console.log("messaggio 101 mandato");
+      });
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    socket.on("001", () => {
-      console.log("messaggio 001 ricevuto");
-      socket.emit(
-        "101",
-        localStorage.getItem("userId"),
-        localStorage.getItem("userName"),
-      );
-      console.log("messaggio 101 mandato");
-    });
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    socket.on("201", () => {
-      console.log("messaggio 201 ricevuto")
-      //showscreen userWarning
-      visual.showScreen(visual.screens.userIdWarning);
-      /*
+      /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      tSocket.on("201", () => {
+        console.log("messaggio 201 ricevuto");
+        //showscreen userWarning
+        visual.showScreen(visual.screens.userIdWarning);
+        /*
       localStorage.removeItem("userId");
       localStorage.removeItem("userName");
       utility.generateUser();
@@ -33,18 +34,19 @@ export function startConnection() {
         localStorage.getItem("userId"),
         localStorage.getItem("userName"),
       );*/
+      });
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      tSocket.on("002", (callback) => {
+        console.log("messaggio 003 ricevuto");
+        callback(); // ← Questo riconosce il messaggio al server
+      });
     });
+    this.socket = tSocket;
+    return tSocket;
+  },
+  changeUserName: function(userName) {
+    this.socket.emit("102", userName)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    socket.on("002", (callback) => {
-      console.log("messaggio 003 ricevuto");
-      callback(); // ← Questo riconosce il messaggio al server
-    });
-
-  });
-
-
-
-
-  return socket;
-}
+  }
+};

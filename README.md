@@ -29,6 +29,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | Codice | Descrizione |
 |--------|-------------|
 | **101**|`<userId>`, `<userName>`|
+| **102**|`<UserName>`|
 
 ---
 

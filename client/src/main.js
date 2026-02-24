@@ -1,6 +1,6 @@
 import BootScene from "./scenes/BootScene.js";
 import "./WebSocketClient.js";
-import { startConnection } from "./WebSocketClient.js";
+import {socketFuncions } from "./WebSocketClient.js";
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
 
@@ -14,7 +14,7 @@ console.log("UserID locale:", userId);
 console.log("UserName locale:", userName);
 
 // Connessione al server
-const socket = startConnection(); // (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
+const socket = socketFuncions.startConnection(); // (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
 
 // Schermate
 
@@ -68,3 +68,8 @@ function generateUser() {
   userId = localStorage.getItem("userId");
   userName = localStorage.getItem("userName");
 }
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// inizializza documento
+visual.initializeHtml();
