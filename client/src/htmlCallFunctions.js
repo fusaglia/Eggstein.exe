@@ -45,6 +45,6 @@ export const visual = {
     console.log("userNameBtn inizializzato");
   },
   invalidUserNameAnimation: function() {
-
+    //animazione in css tipo 
   }
 };

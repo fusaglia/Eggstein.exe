@@ -1,6 +1,6 @@
 import BootScene from "./scenes/BootScene.js";
 import "./WebSocketClient.js";
-import {socketFuncions } from "./WebSocketClient.js";
+import { socketFuncions } from "./WebSocketClient.js";
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
 
