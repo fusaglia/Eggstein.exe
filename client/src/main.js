@@ -64,12 +64,20 @@ function generateUser() {
   if (userId && userName == "user" + userId.substring(0, 10)) {
     visual.showScreen(visual.screens.userNameChoosingScreen);
   }
+  else 
+  {
+    visual.showScreen(visual.screens.lobbyScreen);
+  }
   // Ricarica i valori dopo generateUser() li ha impostati
   userId = localStorage.getItem("userId");
   userName = localStorage.getItem("userName");
 }
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // inizializza documento
 visual.initializeHtml();
+
+export function reloadUserNameAndId() {
+  userId = localStorage.getItem("userId");
+  userName = localStorage.getItem("userName");
+}

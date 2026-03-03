@@ -21,6 +21,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 |--------|-------------|
 | **001**|`ciao negro! mandami il tuo UserID e il tuo UserName`|
 | **002**|`ping`|
+| **003**|`userName cambiato`|
 
 
 ---

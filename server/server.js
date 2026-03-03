@@ -24,7 +24,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/", "index.html"));
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 9000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Access the game at http://localhost:${PORT}`);
@@ -33,6 +33,7 @@ server.listen(PORT, () => {
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // costanti
 const users = new Map();
+const rooms = new Map();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // gestione connessioni
@@ -54,10 +55,10 @@ io.on("connection", (socket) => {
           if (err) {
             console.log(
               "lo user " +
-              user.userId +
-              " | " +
-              user.userName +
-              " si è riconnesso",
+                user.userId +
+                " | " +
+                user.userName +
+                " si è riconnesso",
             );
             users.set(userId, {
               userName: userName,
@@ -67,8 +68,7 @@ io.on("connection", (socket) => {
             });
             socket.userId = userId;
             utility.handleReconnection(userId);
-          }
-          else {
+          } else {
             socket.emit("201");
             console.log("messaggio 201 mandato");
           }
@@ -79,10 +79,10 @@ io.on("connection", (socket) => {
         if (user.userName == userName) {
           console.log(
             "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " si è riconnesso",
+              user.userId +
+              " | " +
+              user.userName +
+              " si è riconnesso",
           );
           users.set(userId, {
             userName: userName,
@@ -109,6 +109,14 @@ io.on("connection", (socket) => {
       socket.userId = userId;
       utility.handleFirstConnection(userId);
     }
+    socket.on("102", (userName) => {
+      console.log("messaggo 102 ricevuto")
+      if (users.has(socket.userId)) {
+        users.get(socket.userId).userName = userName;
+      }
+      socket.emit("003");
+      console.log("messaggo 003 mandato")
+    });
   });
   socket.on("disconnect", (reason) => {
     //messaggio di disconnessione da parte del client
@@ -118,13 +126,12 @@ io.on("connection", (socket) => {
     const user = users.get(socket.userId);
     console.log(
       "the user " +
-      user.userId +
-      " | " +
-      user.userName +
-      " disconnected because of " +
-      reason,
+        user.userId +
+        " | " +
+        user.userName +
+        " disconnected because of " +
+        reason,
     );
     users.get(socket.userId).isOnline = false;
-
   });
 });

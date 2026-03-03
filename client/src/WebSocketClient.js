@@ -41,12 +41,27 @@ export const socketFuncions = {
         console.log("messaggio 003 ricevuto");
         callback(); // ← Questo riconosce il messaggio al server
       });
+      tSocket.on("003", ()=> {
+        console.log("messaggo 003 ricevuto");
+        console.log("userName cambiato");
+        localStorage.setItem("userName", visual.userNameTemp);
+        visual.hideScreen(visual.screens.userNameChoosingScreen);
+      })
     });
     this.socket = tSocket;
     return tSocket;
   },
+
   changeUserName: function(userName) {
     this.socket.emit("102", userName)
+  },
 
+  createRoom: function (roomId) {
+    this.socket.emit("createRoom", roomId);
+  },
+
+  joinRoom: function (roomId) {
+    this.socket.emit("joinRoom", roomId);
   }
+
 };
