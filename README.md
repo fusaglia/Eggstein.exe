@@ -22,6 +22,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **001**|`ciao negro! mandami il tuo UserID e il tuo UserName`|`vuoto`|
 | **002**|`ping`|`vuoto`|
 | **003**|`userName cambiato`|`vuoto`|
+| **004**|`stanza creata`|`vuoto`|
+| **005**|`broadcast delle stanze`|`<map(rooms)>`|
 
 
 ---
@@ -41,6 +43,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 |--------|-------------|-----------|
 | **201**|`dice al client che esiste già una persona con quello userId`|`vuoto`|
 | **202**|`dice al client che il suo userName non va bene`|`vuoto`|
+| **203**|`dice al client che la stanza che vuole creare esiste già`|`vuoto`|
+| **204**|`dice al client che la stanza in cui vuole entrare non esistes`|`vuoto`|
 
 ### 🟠 Errori Client (30N)
 | Codice | Descrizione | Contenuto |

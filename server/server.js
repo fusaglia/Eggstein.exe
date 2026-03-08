@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import path from "path";
 import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
+import { callbackify } from "util";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,8 @@ server.listen(PORT, () => {
 // costanti
 const users = new Map();
 const rooms = new Map();
+const minPlayer = 2;
+const maxPlayer = 8;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // gestione connessioni
@@ -52,9 +55,11 @@ io.on("connection", (socket) => {
 
   socket.on("101", (userId, userName) => {
     console.log("messaggio 101 ricevuto da socket: " + socket.id);
-    if (!utility.checkUserName(userName)){
+    if (!utility.checkUserName(userName)) {
       socket.emit("201");
-      console.log("lo userName " + userName + " dello user " + userId + " non è valido");
+      console.log(
+        "lo userName " + userName + " dello user " + userId + " non è valido",
+      );
       console.log("messaggio 201 mandato");
       return;
     }
@@ -130,6 +135,44 @@ io.on("connection", (socket) => {
       }
       socket.emit("003");
       console.log("messaggo 003 mandato");
+    });
+    socket.on("103", (roomId, attributes, callback) => {
+      console.log("messaggo 103 ricevuto");
+      if (rooms.has(roomId)) {
+        console.log("la stanza " + roomId + " esiste già");
+        callback("203");
+        return;
+      }
+      console.log("creazione stanza " + roomId);
+      const tempRoom = {
+        roomId: roomId,
+        players: new Map(),
+        maxPlayer: attributes.maxPlayer || maxPlayer,
+        minPlayer: minPlayer,
+        mappa: attributes.mappa || "mappa1",
+        password: attributes.password || null,
+      };
+      rooms.set(roomId, tempRoom);
+      console.log("stanza " + roomId + " creata");
+      callback("004");
+      const roomList = [];
+      rooms.forEach((value, key) => {
+        roomList.push({
+          roomId: value.roomId,
+          players: value.players.size,
+          maxPlayer: value.maxPlayer,
+          password: value.password ? true : false,
+        });
+      });
+      io.emit("005", roomList);
+    });
+    socket.on("104", (roomId, callback) => {
+      console.log("messaggo 104 ricevuto");
+      if (!rooms.has(roomId)) {
+        console.log("la stanza " + roomId + " non esiste");
+        callback("204");
+        return;
+      }
     });
   });
   socket.on("disconnect", (reason) => {

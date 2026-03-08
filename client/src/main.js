@@ -47,6 +47,7 @@ window.addEventListener('resize', () => {
 // DEBUG
 const cancUserNameBtn = document.getElementById("cancUserNameBtn");
 const cancUserIdBtn = document.getElementById("cancUserIdBtn");
+const debugHeader = document.getElementById("debugHeader");
 
 cancUserIdBtn.addEventListener("click", (event) => {
   userId = "";
@@ -59,13 +60,18 @@ cancUserNameBtn.addEventListener("click", (event) => {
   localStorage.removeItem("userName");
 });
 
+//quando si clicca F12 mostra i bottoni per cancellare userId e userName
+window.addEventListener("keydown", (event) => {
+  if (event.key === "F12") {
+    debugHeader.classList.toggle("hidden");
+  }
+});
+
 function generateUser() {
   utility.generateUser();
   if (userId && userName == "user" + userId.substring(0, 10)) {
     visual.showScreen(visual.screens.userNameChoosingScreen);
-  }
-  else 
-  {
+  } else {
     visual.showScreen(visual.screens.lobbyScreen);
   }
   // Ricarica i valori dopo generateUser() li ha impostati
