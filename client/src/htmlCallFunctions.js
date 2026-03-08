@@ -22,14 +22,26 @@ export const visual = {
 
   showScreen: function (screen) {
     Object.values(this.screens).forEach((s) => {
+      if (!s) return;
       s.classList.add("hidden");
+      Object.values(s.elements || {}).forEach((element) => {
+        element.classList.add("hidden");
+      });
     });
 
+    if (!screen) return;
     screen.classList.remove("hidden");
+    Object.values(screen.elements || {}).forEach((element) => {
+      element.classList.remove("hidden");
+    });
   },
 
   hideScreen: function (screen) {
+    if (!screen) return;
     screen.classList.add("hidden");
+    Object.values(screen.elements || {}).forEach((element) => {
+      element.classList.add("hidden");
+    });
   },
 
   initializeHtml: function () {
@@ -57,7 +69,7 @@ export const visual = {
     });
     console.log("userNameBtn inizializzato");
 
-    this.elements.createRoomBtn.addEventListener("click", () => {
+    this.elements.createRoomBtn.addEventListener("click",  () => {
       console.log("Create Room button clicked");
       // prendi il roomId dall'input con la regex
       let regex = new RegExp("^[a-zA-Z0-9_]+$");
@@ -82,6 +94,7 @@ export const visual = {
       // prendi il roomId dall'input con la regex
       let regex = new RegExp("^[a-zA-Z0-9_]+$");
       const roomId = this.elements.roomIdInput.value.trim();
+      const attributes = {};
       if (!roomId) {
         console.log("RoomId nullo");
       } else if (!regex.test(roomId)) {
@@ -92,7 +105,7 @@ export const visual = {
         console.log("RoomId troppo lungo");
       } else {
         console.log("RoomId valido");
-        socketFuncions.joinRoom(roomId);
+        socketFuncions.joinRoom(roomId, attributes);
       }
     });
     console.log("joinRoomBtn inizializzato");

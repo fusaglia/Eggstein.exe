@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <title>EggStein.exe</title>
     <link rel="stylesheet" href="style/style.css" />
-    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
   </head>
   <body>
     <!-- DEBUG -->
-    <header>
+    <header class="hidden" id="debugHeader">
       <button id="cancUserNameBtn">Cancella userName</button
       ><button id="cancUserIdBtn">Cancella userId</button>
     </header>
@@ -42,27 +42,24 @@
     </div>
 
     <!-- 🟦 LOBBY SCREEN -->
-    <div id="lobbyScreen" class="screen hidden">
-
-      <div class="card">
+    <div id="lobbyScreen" class="screen hidden card room">
+      <div class="">
         <h2>Stanze</h2>
         <input id="roomIdInput" type="text" placeholder="ID stanza" />
-        <button id="createBtn">Crea Stanza</button>
         <button id="joinBtn">Entra nella Stanza</button>
+        <ul id="availableRoomsList"></ul>
       </div>
 
-      <div class="card">
-        <h3>Stanze attive</h3>
-        <ul id="roomList"></ul>
+      <div class="">
+        <h2>Crea Stanza</h2>
+        <input id="CreateRoomIdInput" type="text" placeholder="ID stanza" />
+        <button id="createBtn">Crea Stanza</button>
+        <div id="createRoomOptions"></div>
       </div>
-
-      <p id="status"></p>
-      <p id="messages"></p>
     </div>
 
-    <!-- 🟩 ROOM SCREEN -->
+    <!-- 🟩 ROOM SCREEN --> 
     <div id="roomScreen" class="screen hidden">
-
       <h2>Stanza: <span id="currentRoomName"></span></h2>
       <p id="roomStatus">In attesa di altri giocatori...</p>
 
