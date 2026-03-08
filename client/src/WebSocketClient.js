@@ -57,11 +57,11 @@ export const socketFuncions = {
   },
 
   createRoom: function (roomId) {
-    this.socket.emit("createRoom", roomId);
+    this.socket.emit("103", roomId);
   },
 
   joinRoom: function (roomId) {
-    this.socket.emit("joinRoom", roomId);
+    this.socket.emit("104", roomId);
   }
 
 };
