@@ -48,6 +48,25 @@ export const socketFuncions = {
         visual.hideScreen(visual.screens.userNameChoosingScreen);
       });
     });
+    tSocket.on("005", (roomList) => {
+      if (!roomList) return;
+      //se roomList è vuoto, return, altrimenti aggiorna la lista delle stanze disponibili
+      if (roomList.length == 0) {
+        visual.elements.availableRoomsList.innerHTML = "";
+        console.log("Lista stanze aggiornata: nessuna stanza disponibile");
+        return;
+      }
+      console.log("messaggio 005 ricevuto");
+      console.log("Lista stanze aggiornata:", roomList);
+      visual.elements.availableRoomsList.innerHTML = "";
+      roomList.forEach((room) => {
+        const listItem = document.createElement("li");
+        listItem.textContent = `ID: ${room.roomId} - Players: ${room.players}/${room.maxPlayer} - Password: ${
+          room.password ? "Yes" : "No"
+        }`;
+        visual.elements.availableRoomsList.appendChild(listItem);
+      });
+    });
     this.socket = tSocket;
     return tSocket;
   },

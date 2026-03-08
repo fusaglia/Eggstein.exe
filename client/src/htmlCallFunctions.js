@@ -18,6 +18,11 @@ export const visual = {
     createRoomBtn: document.getElementById("createBtn"),
     joinRoomBtn: document.getElementById("joinBtn"),
     roomIdInput: document.getElementById("roomIdInput"),
+    createRoomIdInput: document.getElementById("CreateRoomIdInput"),
+    createRoomMaxPlayers: document.getElementById("CreateRoomMaxPlayers"),
+    createRoomPassword: document.getElementById("CreateRoomPassword"),
+    createRoomMap: document.getElementById("CreateRoomMap"),
+    availableRoomsList: document.getElementById("availableRoomsList"),
   },
 
   showScreen: function (screen) {
@@ -73,27 +78,7 @@ export const visual = {
       console.log("Create Room button clicked");
       // prendi il roomId dall'input con la regex
       let regex = new RegExp("^[a-zA-Z0-9_]+$");
-      const roomId = this.elements.roomIdInput.value.trim();
-      if (!roomId) {
-        console.log("RoomId nullo");
-      } else if (!regex.test(roomId)) {
-        console.log("RoomId non valido");
-      } else if (roomId.length < 5) {
-        console.log("RoomId troppo corto");
-      } else if (roomId.length > 21) {
-        console.log("RoomId troppo lungo");
-      } else {
-        console.log("RoomId valido");
-        socketFuncions.createRoom(roomId);
-      }
-    });
-    console.log("createRoomBtn inizializzato");
-
-    this.elements.joinRoomBtn.addEventListener("click", () => {
-      console.log("Join Room button clicked");
-      // prendi il roomId dall'input con la regex
-      let regex = new RegExp("^[a-zA-Z0-9_]+$");
-      const roomId = this.elements.roomIdInput.value.trim();
+      const roomId = this.elements.createRoomIdInput.value.trim();
       const attributes = {};
       if (!roomId) {
         console.log("RoomId nullo");
@@ -105,7 +90,47 @@ export const visual = {
         console.log("RoomId troppo lungo");
       } else {
         console.log("RoomId valido");
-        socketFuncions.joinRoom(roomId, attributes);
+        const maxPlayer = parseInt(this.elements.createRoomMaxPlayers.value) || 8;
+        const password = this.elements.createRoomPassword.value.trim();
+        const mappa = this.elements.createRoomMap.value || "mappa1";
+        if (!regex.test(password) && password.length > 0) {
+          console.log("Password non valida");
+          return;
+        }
+        attributes.maxPlayer = maxPlayer;
+        attributes.password = password || null;
+        attributes.mappa = mappa;
+        socketFuncions.createRoom(roomId, attributes);
+      }
+    });
+    console.log("createRoomBtn inizializzato");
+
+    this.elements.createRoomPassword.addEventListener("input", () => {
+      let regex = new RegExp("^[a-zA-Z0-9]+$");
+      const password = this.elements.createRoomPassword.value.trim();
+      if (!regex.test(password)) {
+        console.log("Password non valida");
+        this.elements.createRoomPassword.value = password.replace(/[^a-zA-Z0-9]/g, "");
+      }
+    });
+    console.log("createRoomPassword inizializzato");
+
+    this.elements.joinRoomBtn.addEventListener("click", () => {
+      console.log("Join Room button clicked");
+      // prendi il roomId dall'input con la regex
+      let regex = new RegExp("^[a-zA-Z0-9_]+$");
+      const roomId = this.elements.roomIdInput.value.trim();
+      if (!roomId) {
+        console.log("RoomId nullo");
+      } else if (!regex.test(roomId)) {
+        console.log("RoomId non valido");
+      } else if (roomId.length < 5) {
+        console.log("RoomId troppo corto");
+      } else if (roomId.length > 21) {
+        console.log("RoomId troppo lungo");
+      } else {
+        console.log("RoomId valido");
+        socketFuncions.joinRoom(roomId);
       }
     });
     console.log("joinRoomBtn inizializzato");

@@ -141,8 +141,7 @@ button:active {
   color: #ffffff;
 }
 
-#lobbyScreen #roomIdInput,
-#lobbyScreen #CreateRoomIdInput {
+#lobbyScreen input[type="text"], #lobbyScreen input[type="number"] {
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
@@ -153,8 +152,7 @@ button:active {
   color: #fff;
 }
 
-#lobbyScreen #roomIdInput:focus,
-#lobbyScreen #CreateRoomIdInput:focus {
+#lobbyScreen input[type="text"]:focus, #lobbyScreen input[type="number"]:focus {
   outline: none;
   border-color: #9ad1ff;
 }

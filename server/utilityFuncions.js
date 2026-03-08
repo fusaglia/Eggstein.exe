@@ -19,4 +19,16 @@ export const utility = {
     }
     return false;
   },
+  getRoomList: function (rooms) {
+    const roomList = [];
+      rooms.forEach((value, key) => {
+        roomList.push({
+          roomId: value.roomId,
+          players: value.players.size,
+          maxPlayer: value.maxPlayer,
+          password: value.password ? true : false,
+        });
+      });
+      return roomList;
+  },
 };

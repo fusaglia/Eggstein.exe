@@ -128,6 +128,7 @@ io.on("connection", (socket) => {
       socket.userId = userId;
       utility.handleFirstConnection(userId);
     }
+    socket.emit("005", utility.getRoomList(rooms));
     socket.on("102", (userName) => {
       console.log("messaggo 102 ricevuto");
       if (users.has(socket.userId)) {
@@ -155,16 +156,7 @@ io.on("connection", (socket) => {
       rooms.set(roomId, tempRoom);
       console.log("stanza " + roomId + " creata");
       callback("004");
-      const roomList = [];
-      rooms.forEach((value, key) => {
-        roomList.push({
-          roomId: value.roomId,
-          players: value.players.size,
-          maxPlayer: value.maxPlayer,
-          password: value.password ? true : false,
-        });
-      });
-      io.emit("005", roomList);
+      io.emit("005", utility.getRoomList(rooms));
     });
     socket.on("104", (roomId, callback) => {
       console.log("messaggo 104 ricevuto");
