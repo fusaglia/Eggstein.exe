@@ -24,7 +24,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/", "index.html"));
 });
 
-const PORT = process.env.PORT || 9000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Access the game at http://localhost:${PORT}`);
@@ -39,11 +39,25 @@ const rooms = new Map();
 // gestione connessioni
 io.on("connection", (socket) => {
   //connesione di un client
-  console.log("Un negro è entrato", socket.id);
+  {
+    let randomJoke = ["negro", "nigga", "jew", "ebreo", "goym"];
+    console.log(
+      "Un " +
+        randomJoke[Math.floor(Math.random() * randomJoke.length)] +
+        " è entrato",
+      socket.id,
+    );
+  }
   socket.emit("001");
 
   socket.on("101", (userId, userName) => {
     console.log("messaggio 101 ricevuto da socket: " + socket.id);
+    if (!utility.checkUserName(userName)){
+      socket.emit("201");
+      console.log("lo userName " + userName + " dello user " + userId + " non è valido");
+      console.log("messaggio 201 mandato");
+      return;
+    }
     //se uno user con lo stesso userId si è gia collegato in precendeza
     if (users.has(userId)) {
       const user = users.get(userId);
@@ -110,12 +124,12 @@ io.on("connection", (socket) => {
       utility.handleFirstConnection(userId);
     }
     socket.on("102", (userName) => {
-      console.log("messaggo 102 ricevuto")
+      console.log("messaggo 102 ricevuto");
       if (users.has(socket.userId)) {
         users.get(socket.userId).userName = userName;
       }
       socket.emit("003");
-      console.log("messaggo 003 mandato")
+      console.log("messaggo 003 mandato");
     });
   });
   socket.on("disconnect", (reason) => {

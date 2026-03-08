@@ -57,7 +57,7 @@ export const visual = {
     });
     console.log("userNameBtn inizializzato");
 
-    elements.createRoomBtn.addEventListener("click", () => {
+    this.elements.createRoomBtn.addEventListener("click", () => {
       console.log("Create Room button clicked");
       // prendi il roomId dall'input con la regex
       let regex = new RegExp("^[a-zA-Z0-9_]+$");
@@ -77,7 +77,7 @@ export const visual = {
     });
     console.log("createRoomBtn inizializzato");
 
-    elements.joinRoomBtn.addEventListener("click", () => {
+    this.elements.joinRoomBtn.addEventListener("click", () => {
       console.log("Join Room button clicked");
       // prendi il roomId dall'input con la regex
       let regex = new RegExp("^[a-zA-Z0-9_]+$");

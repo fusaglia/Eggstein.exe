@@ -13,9 +13,13 @@
       ><button id="cancUserIdBtn">Cancella userId</button>
     </header>
 
+    <!-- Titolo del gioco, poco sopra al centro dello schermo-->
+    <div id="gameTitle">
+      <h1>EggStein.exe</h1>
+    </div>
+
     <!-- USER CONNECTED ON MOBILE WARNING (GAME IS ONLY PLAYABLE VIA PC) !!! -->
     <div id="userMobileWarning" class="hidden">
-      <h1>EggStein.exe</h1>
       <p>
         Attenzione: per giocare è necessario utilizzare un dispositivo desktop o
         laptop.
@@ -24,7 +28,6 @@
 
     <!-- USERID ALREADY CONNECTED WARNING !!! -->
     <div id="userIdWarning" class="hidden">
-      <h1>EggStein.exe</h1>
       <p>
         Attenzione: questo UserID è già collegato da un'altra scheda o
         dispositivo.
@@ -40,10 +43,9 @@
 
     <!-- 🟦 LOBBY SCREEN -->
     <div id="lobbyScreen" class="screen hidden">
-      <h1>EggStein.exe</h1>
 
       <div class="card">
-        <h2>Lobby</h2>
+        <h2>Stanze</h2>
         <input id="roomIdInput" type="text" placeholder="ID stanza" />
         <button id="createBtn">Crea Stanza</button>
         <button id="joinBtn">Entra nella Stanza</button>
@@ -60,7 +62,6 @@
 
     <!-- 🟩 ROOM SCREEN -->
     <div id="roomScreen" class="screen hidden">
-      <h1>EggStein.exe</h1>
 
       <h2>Stanza: <span id="currentRoomName"></span></h2>
       <p id="roomStatus">In attesa di altri giocatori...</p>
