@@ -57,9 +57,16 @@
         <div id="createRoomOptions">
           <input id="CreateRoomMaxPlayers" type="number" min="2" max="8" placeholder="Max players" />
           <input id="CreateRoomPassword" type="text" placeholder="Eventuale password" />
-          <input id="CreateRoomMap" type="radio" placeholder="Mappa" value="1" />
+          <input id="CreateRoomMap" type="radio" placeholder="Mappa" value="mappa1" />
         </div>
       </div>
+    </div>
+
+    <div id="passwordCard" class="screen hidden card room">
+      <h2>Stanza protetta da password</h2>
+      <h3 class="hidden" id="passwordError">Password sbagliata</h3>
+      <input id="passwordInput" type="text" placeholder="Password stanza" />
+      <button id="passwordSubmitBtn">Invia Password</button>
     </div>
 
     <!-- 🟩 ROOM SCREEN --> 

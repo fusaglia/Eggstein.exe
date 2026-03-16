@@ -2,6 +2,7 @@ import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
 export const socketFuncions = {
   socket: null,
+  roomList: null,
   startConnection: function () {
     // Connessione al server
     const tSocket = io();
@@ -38,7 +39,7 @@ export const socketFuncions = {
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       tSocket.on("002", (callback) => {
-        console.log("messaggio 003 ricevuto");
+        console.log("messaggio 002 ricevuto");
         callback(); // ← Questo riconosce il messaggio al server
       });
       tSocket.on("003", () => {
@@ -46,24 +47,24 @@ export const socketFuncions = {
         console.log("userName cambiato");
         localStorage.setItem("userName", visual.userNameTemp);
         visual.hideScreen(visual.screens.userNameChoosingScreen);
+        visual.showScreen(visual.screens.lobbyScreen);
       });
     });
-    tSocket.on("005", (roomList) => {
-      if (!roomList) return;
+    tSocket.on("005", (tRoomList) => {
+      if (!tRoomList) return;
+      this.roomList = tRoomList;
       //se roomList è vuoto, return, altrimenti aggiorna la lista delle stanze disponibili
-      if (roomList.length == 0) {
+      if (tRoomList.length == 0) {
         visual.elements.availableRoomsList.innerHTML = "";
         console.log("Lista stanze aggiornata: nessuna stanza disponibile");
         return;
       }
       console.log("messaggio 005 ricevuto");
-      console.log("Lista stanze aggiornata:", roomList);
+      console.log("Lista stanze aggiornata:", tRoomList);
       visual.elements.availableRoomsList.innerHTML = "";
-      roomList.forEach((room) => {
+      tRoomList.forEach((room) => {
         const listItem = document.createElement("li");
-        listItem.textContent = `ID: ${room.roomId} - Players: ${room.players}/${room.maxPlayer} - Password: ${
-          room.password ? "Yes" : "No"
-        }`;
+        listItem.textContent = `ID: ${room.roomId} - Players: ${room.players}/${room.maxPlayer} - Password: ${room.password} - Mappa: ${room.mappa}`;
         visual.elements.availableRoomsList.appendChild(listItem);
       });
     });
@@ -78,23 +79,41 @@ export const socketFuncions = {
 
   createRoom: async function (roomId, attributes) {
     visual.elements.createRoomBtn.disabled = true;
-    await this.socket.timeout(3000).emit("103", roomId, attributes, (err, response) => {
-      if (err) console.error(err);
-      if (response) console.log(response);
-    });
+    await this.socket
+      .timeout(3000)
+      .emit("103", roomId, attributes, (err, response) => {
+        if (err) console.error(err);
+        if (response) console.log(response);
+      });
     console.log("messaggio 103 mandato");
     visual.elements.createRoomBtn.disabled = false;
     return;
   },
 
-  joinRoom: async function (roomId) {
+  joinRoom: async function (roomId, password) {
     visual.elements.joinRoomBtn.disabled = true;
-    await this.socket.timeout(3000).emit("104", roomId, (err, response) => {
+    await this.socket.timeout(3000).emit("104", roomId, password, (err, response) => {
       if (err) console.error(err);
-      if (response) console.log(response);
+      if (response) {
+        switch (response) {
+          case "006":
+            visual.hideElement(visual.elements.passwordCard);
+            visual.showScreen(visual.screens.roomScreen);
+            break;
+          case "206":
+            console.log("password sbagliata");
+            visual.showElement(visual.elements.passwordCard);
+            visual.showElement(visual.elements.passwordError);
+            break;
+          default:
+            console.log("messaggio 104 ricevuto");
+        }
+      }
+      
     });
     console.log("messaggio 104 mandato");
     visual.elements.joinRoomBtn.disabled = false;
     return;
   },
 };
+

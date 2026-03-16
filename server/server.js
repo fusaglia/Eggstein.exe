@@ -5,6 +5,7 @@ import path from "path";
 import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
 import { callbackify } from "util";
+import { re } from "mathjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -151,19 +152,73 @@ io.on("connection", (socket) => {
         maxPlayer: attributes.maxPlayer || maxPlayer,
         minPlayer: minPlayer,
         mappa: attributes.mappa || "mappa1",
-        password: attributes.password || null,
+        password: attributes.password,
       };
+      console.log("attributi stanza: " + JSON.stringify(tempRoom));
       rooms.set(roomId, tempRoom);
       console.log("stanza " + roomId + " creata");
       callback("004");
       io.emit("005", utility.getRoomList(rooms));
     });
-    socket.on("104", (roomId, callback) => {
+    socket.on("104", (roomId, password, callback) => {
       console.log("messaggo 104 ricevuto");
+      if (!users.has(socket.userId)) {
+        return;
+      }
+      const user = users.get(userId);
+      console.log(
+        "lo user " +
+          user.userId +
+          " | " +
+          user.userName +
+          " vuole entrare nella stanza " +
+          roomId,
+      );
       if (!rooms.has(roomId)) {
         console.log("la stanza " + roomId + " non esiste");
         callback("204");
         return;
+      }
+      if (rooms.get(roomId).password) {
+        console.log("la stanza " + roomId + " è protetta da password");
+        if (rooms.get(roomId).password !== password) {
+          console.log("password sbagliata per la stanza " + roomId);
+          callback("206");
+          return;
+        }
+      }
+      if (rooms.get(roomId).players.size >= rooms.get(roomId).maxPlayer) {
+        //controlla se nella stanza ci sono dei dublicati di userId, se si, rimuovili e permetti al nuovo user di entrare, altrimenti rifiuta l'ingresso
+        const room = rooms.get(roomId);
+        let duplicateFound = false;
+        room.players.forEach((value, key) => {
+          const tempMap = new Map();
+          if (tempMap.has(value.userId)) {
+            duplicateFound = true;
+            room.players.delete(key);
+          }
+          tempMap.set(value.userId, true);
+        });
+        if (duplicateFound) {
+          console.log(
+            "la stanza " +
+              roomId +
+              " era piena ma è stato trovato un duplicato, quindi è stato rimosso e il nuovo user è entrato",
+          );
+          callback("006");
+          return;
+        }
+        console.log("la stanza " + roomId + " è piena");
+        callback("205");
+        return;
+      } else {
+        console.log("lo user " + user.userId + " | " + user.userName + " è entrato nella stanza " + roomId);
+        socket.join(roomId);
+        rooms.get(roomId).players.set(socket.userId, {
+          userId: socket.userId,
+          userName: users.get(socket.userId).userName,
+        });
+        callback("006");
       }
     });
   });

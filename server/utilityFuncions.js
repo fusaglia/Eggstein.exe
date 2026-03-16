@@ -4,7 +4,7 @@ export const utility = {
 
   handleFirstConnection: function (userId) {},
   checkUserName: function (userName) {
-    let regex = new RegExp("^[a-zA-Z0-9_]+$");
+    let regex = new RegExp("^[a-zA-Z0-9_-]+$");
     if (!userName) {
       console.log("UserName nullo");
     } else if (!regex.test(userName)) {
@@ -26,7 +26,8 @@ export const utility = {
           roomId: value.roomId,
           players: value.players.size,
           maxPlayer: value.maxPlayer,
-          password: value.password ? true : false,
+          password: value.password ? "Yes" : "No",
+          mappa: value.mappa,
         });
       });
       return roomList;
