@@ -1,3 +1,4 @@
+import { reload } from "./main.js";
 import { socketFuncions } from "./WebSocketClient.js";
 export const visual = {
   userNameTemp: null,
@@ -29,6 +30,11 @@ export const visual = {
     passwordInput: document.getElementById("passwordInput"),
     passwordSubmitBtn: document.getElementById("passwordSubmitBtn"),
     passwordError: document.getElementById("passwordError"),
+
+    //roomScreen
+    roomInfo: document.getElementById("roomInfo"),
+    playersList: document.getElementById("playersList"),
+    currentRoomName: document.getElementById("currentRoomName"),
   },
 
   showScreen: function (screen) {
@@ -175,5 +181,9 @@ export const visual = {
 
   invalidUserNameAnimation: function () {
     //animazione in css tipo
+  },
+  reloadRoom: function (room) {
+    //aggiorna la schermata della stanza con le informazioni della stanza passata come parametro
+      this.elements.currentRoomName.textContent = "Stanza: " + room.roomId;
   },
 };

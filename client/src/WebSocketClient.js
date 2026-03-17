@@ -1,5 +1,6 @@
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
+import { reload } from "./main.js";
 export const socketFuncions = {
   socket: null,
   roomList: null,
@@ -67,6 +68,11 @@ export const socketFuncions = {
         listItem.textContent = `ID: ${room.roomId} - Players: ${room.players}/${room.maxPlayer} - Password: ${room.password} - Mappa: ${room.mappa}`;
         visual.elements.availableRoomsList.appendChild(listItem);
       });
+    });
+    tSocket.on("007", (room) => {
+      console.log("messaggio 007 ricevuto");
+      console.log("Informazioni stanza:", room);
+      reload.reloadRoom(room);
     });
     this.socket = tSocket;
     return tSocket;

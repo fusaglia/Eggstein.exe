@@ -5,26 +5,20 @@ import path from "path";
 import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
 import { callbackify } from "util";
-import { re } from "mathjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
+const io = new Server(server);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, "../client")));
-
+/*
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/", "index.html"));
-});
+});*/
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
@@ -87,7 +81,7 @@ io.on("connection", (socket) => {
               isOnline: true,
             });
             socket.userId = userId;
-            utility.handleReconnection(userId);
+            utility.handleReconnection(userId, socket, rooms, users);
           } else {
             socket.emit("201");
             console.log("messaggio 201 mandato");
@@ -111,7 +105,7 @@ io.on("connection", (socket) => {
             isOnline: true,
           });
           socket.userId = userId;
-          utility.handleReconnection(userId);
+          utility.handleReconnection(userId, socket, rooms, users);
         } else {
           //è un user diverso con lo stesso userId
           socket.emit("201");
@@ -165,7 +159,7 @@ io.on("connection", (socket) => {
       if (!users.has(socket.userId)) {
         return;
       }
-      const user = users.get(userId);
+      const user = users.get(socket.userId);
       console.log(
         "lo user " +
           user.userId +
@@ -205,7 +199,7 @@ io.on("connection", (socket) => {
               roomId +
               " era piena ma è stato trovato un duplicato, quindi è stato rimosso e il nuovo user è entrato",
           );
-          callback("006");
+          utility.userEnterRoom(socket, roomId, rooms, users, callback);
           return;
         }
         console.log("la stanza " + roomId + " è piena");
@@ -213,12 +207,7 @@ io.on("connection", (socket) => {
         return;
       } else {
         console.log("lo user " + user.userId + " | " + user.userName + " è entrato nella stanza " + roomId);
-        socket.join(roomId);
-        rooms.get(roomId).players.set(socket.userId, {
-          userId: socket.userId,
-          userName: users.get(socket.userId).userName,
-        });
-        callback("006");
+        utility.userEnterRoom(socket, roomId, rooms, users, callback);
       }
     });
   });
@@ -239,3 +228,6 @@ io.on("connection", (socket) => {
     users.get(socket.userId).isOnline = false;
   });
 });
+
+// update classi
+utility.io = io;

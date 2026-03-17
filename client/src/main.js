@@ -16,6 +16,9 @@ console.log("UserName locale:", userName);
 // Connessione al server
 const socket = socketFuncions.startConnection(); // (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
 
+// Gioco
+const stanza = {};
+
 // Schermate
 
 // serve qualcosa che non permetta di far eseguire questa funzione da console client (F12)
@@ -83,7 +86,12 @@ function generateUser() {
 // inizializza documento
 visual.initializeHtml();
 
-export function reloadUserNameAndId() {
-  userId = localStorage.getItem("userId");
-  userName = localStorage.getItem("userName");
-}
+export const reload = {
+  reloadUserNameAndId: function () {
+    userId = localStorage.getItem("userId");
+    userName = localStorage.getItem("userName");
+  },
+  reloadRoom: function (room) {
+    stanza = room;
+  },
+};

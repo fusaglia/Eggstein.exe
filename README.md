@@ -25,7 +25,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **004**|`stanza creata`|`vuoto`|
 | **005**|`broadcast delle stanze`|`<map(rooms)>`|
 | **006**|`entrata nella stanza con successo`|`vuoto`|
-
+| **007**|`riconnessione alla stanza`|`<room>`|
+| **007**|`questo user si è connesso alla stanza`|`<user>`|
 
 
 ---
