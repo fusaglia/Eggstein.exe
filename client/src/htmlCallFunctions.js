@@ -35,6 +35,8 @@ export const visual = {
     roomInfo: document.getElementById("roomInfo"),
     playersList: document.getElementById("playersList"),
     currentRoomName: document.getElementById("currentRoomName"),
+    readyBtn: document.getElementById("readyBtn"),
+    leaveRoomBtn: document.getElementById("leaveRoomBtn"),
   },
 
   showScreen: function (screen) {
@@ -166,7 +168,6 @@ export const visual = {
     });
     console.log("joinRoomBtn inizializzato");
 
-    console.log("inizializzazione passwordSubmitBtn");
     this.elements.passwordSubmitBtn.addEventListener("click", () => {
       const password = this.elements.passwordInput.value.trim();
       const roomId = this.elements.roomIdInput.value.trim();
@@ -177,6 +178,29 @@ export const visual = {
       }
       socketFuncions.joinRoom(roomId, password);
     });
+    console.log("passwordSubmitBtn inizializzato");
+
+    this.elements.passwordInput.addEventListener("input", () => {
+      let regex = new RegExp("^[a-zA-Z0-9_-]+$");
+      const password = this.elements.passwordInput.value.trim();
+      if (!regex.test(password)) {
+        console.log("Password non valida");
+        this.elements.passwordInput.value = password.replace(
+          /[^a-zA-Z0-9_-]/g,
+          "",
+        );
+      }
+    });
+    console.log("passwordInput inizializzato");
+
+    this.elements.leaveRoomBtn.addEventListener("click", () => {
+    });
+    console.log("leaveRoomBtn inizializzato");
+
+    this.elements.readyBtn.addEventListener("click", () => {
+      socketFuncions.readyUnready();
+    });
+    console.log("readyBtn inizializzato");
   },
 
   invalidUserNameAnimation: function () {
@@ -184,6 +208,6 @@ export const visual = {
   },
   reloadRoom: function (room) {
     //aggiorna la schermata della stanza con le informazioni della stanza passata come parametro
-      this.elements.currentRoomName.textContent = "Stanza: " + room.roomId;
+      this.elements.currentRoomName.textContent = room.roomId;
   },
 };

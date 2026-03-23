@@ -5,6 +5,7 @@ import path from "path";
 import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
 import { callbackify } from "util";
+import { isReadable } from "stream";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +120,8 @@ io.on("connection", (socket) => {
         userId: userId,
         socket: socket,
         isOnline: true,
+        isReady: false,
+        currentRoom: null,
       });
       socket.userId = userId;
       utility.handleFirstConnection(userId);
@@ -206,9 +209,60 @@ io.on("connection", (socket) => {
         callback("205");
         return;
       } else {
-        console.log("lo user " + user.userId + " | " + user.userName + " è entrato nella stanza " + roomId);
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " è entrato nella stanza " +
+            roomId,
+        );
         utility.userEnterRoom(socket, roomId, rooms, users, callback);
       }
+    });
+    socket.on("105", (callback) => {
+      console.log("messaggo 105 ricevuto");
+      if (!users.has(socket.userId)) {
+        return;
+      }
+      const user = users.get(socket.userId);
+      if (user.isReady === true) {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " della stanza " +
+            user.currentRoom +
+            "ha tolto il ready",
+        );
+        user.isReady = false;
+      } else if (user.isReady === false) {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " della stanza " +
+            user.currentRoom +
+            " è ready",
+        );
+        user.isReady = true;
+      } else {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " della stanza " +
+            user.currentRoom +
+            " ha un valore di ready non valido: " +
+            user.isReady,
+        );
+        user.isReady = false;
+      }
+      callback("009", user.isReady);
+      io.to(user.currentRoom).emit("010", user.userId, user.isReady);
     });
   });
   socket.on("disconnect", (reason) => {

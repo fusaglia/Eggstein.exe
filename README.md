@@ -26,7 +26,9 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **005**|`broadcast delle stanze`|`<map(rooms)>`|
 | **006**|`entrata nella stanza con successo`|`vuoto`|
 | **007**|`riconnessione alla stanza`|`<room>`|
-| **007**|`questo user si è connesso alla stanza`|`<user>`|
+| **008**|`questo user si è connesso alla stanza`|`<user>`|
+| **009**|`risposta al ready dello user`|`<bool>`|
+| **010**|`questo user ha messo pronto\non pronto`|`<user>, <bool>`|
 
 
 ---
@@ -38,6 +40,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **102**|`manda al server lo userName cambiato`|`<UserName>`|
 | **103**|`manda al server il rommId della stanza che vuole creare`|`<roomId>`|
 | **104**|`manda al server il rommId della stanza in cui vuole entrare`|`<roomId>`|
+| **105**|`mando alla room nel server il mio ready`|`vuoto`|
 
 ---
 

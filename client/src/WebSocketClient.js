@@ -4,6 +4,7 @@ import { reload } from "./main.js";
 export const socketFuncions = {
   socket: null,
   roomList: null,
+  isReady: false,
   startConnection: function () {
     // Connessione al server
     const tSocket = io();
@@ -73,6 +74,13 @@ export const socketFuncions = {
       console.log("messaggio 007 ricevuto");
       console.log("Informazioni stanza:", room);
       reload.reloadRoom(room);
+      visual.hideElement(visual.elements.passwordCard);
+      visual.showScreen(visual.screens.roomScreen);
+    });
+    tSocket.on("009", () => {
+      console.log("messaggio 009 ricevuto");
+      visual.elements.readyBtn.classList.toggle("ready");
+      visual.elements.readyBtn.classList.toggle("unready");
     });
     this.socket = tSocket;
     return tSocket;
@@ -88,8 +96,8 @@ export const socketFuncions = {
     await this.socket
       .timeout(3000)
       .emit("103", roomId, attributes, (err, response) => {
-        if (err) console.error(err);
-        if (response) console.log(response);
+        if (err) console.error("err: " + err);
+        if (response) console.log("response: " + response);
       });
     console.log("messaggio 103 mandato");
     visual.elements.createRoomBtn.disabled = false;
@@ -98,28 +106,54 @@ export const socketFuncions = {
 
   joinRoom: async function (roomId, password) {
     visual.elements.joinRoomBtn.disabled = true;
-    await this.socket.timeout(3000).emit("104", roomId, password, (err, response) => {
-      if (err) console.error(err);
-      if (response) {
-        switch (response) {
-          case "006":
-            visual.hideElement(visual.elements.passwordCard);
-            visual.showScreen(visual.screens.roomScreen);
-            break;
-          case "206":
-            console.log("password sbagliata");
-            visual.showElement(visual.elements.passwordCard);
-            visual.showElement(visual.elements.passwordError);
-            break;
-          default:
-            console.log("messaggio 104 ricevuto");
+    await this.socket
+      .timeout(3000)
+      .emit("104", roomId, password, (err, response) => {
+        if (err) console.error("err: " + err);
+        if (response) {
+          switch (response) {
+            case "006":
+              visual.hideElement(visual.elements.passwordCard);
+              visual.showScreen(visual.screens.roomScreen);
+              break;
+            case "206":
+              console.log("password sbagliata");
+              visual.showElement(visual.elements.passwordCard);
+              visual.showElement(visual.elements.passwordError);
+              break;
+            default:
+              console.log("errore sconosciuto: " + response);
+          }
         }
-      }
-      
-    });
+      });
     console.log("messaggio 104 mandato");
     visual.elements.joinRoomBtn.disabled = false;
     return;
   },
+  readyUnready: async function () {
+    visual.elements.readyBtn.disabled = true;
+    await this.socket.timeout(3000).emit("105", (err, response, isReady) => {
+      console.log("messaggio 105 mandato");
+      if (err) console.error("err: " + err);
+      if (response) {
+        console.log("messaggio " + response + " ricevuto");
+        console.log("isReady: " + isReady);
+        switch (response) {
+          case "009":
+            this.isReady = isReady;
+            if (this.isReady) {
+              visual.elements.readyBtn.classList.add("ready");
+              visual.elements.readyBtn.classList.remove("unready");
+            } else {
+              visual.elements.readyBtn.classList.remove("ready");
+              visual.elements.readyBtn.classList.add("unready");
+            }
+            break;
+          default:
+            console.log("errore sconosciuto: " + response);
+        }
+      }
+    });
+    visual.elements.readyBtn.disabled = false;
+  },
 };
-

@@ -92,6 +92,13 @@ export const reload = {
     userName = localStorage.getItem("userName");
   },
   reloadRoom: function (room) {
-    stanza = room;
+    stanza.roomId = room.roomId;
+    stanza.maxPlayer = room.maxPlayer;
+    stanza.minPlayer = room.minPlayer;
+    stanza.mappa = room.mappa;
+    stanza.password = room.password;
+    stanza.players = room.players;
+    visual.reloadRoom(room);
+    console.log("stanza aggiornata:", stanza);
   },
 };

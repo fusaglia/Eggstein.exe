@@ -6,6 +6,7 @@ export const utility = {
     return {
       userId: user.userId,
       userName: user.userName,
+      isReady: user.isReady || false,
       isOnline: user.isOnline,
       currentRoom: user.currentRoom || null,
     };
@@ -21,14 +22,24 @@ export const utility = {
       players: Array.from(room.players.values()),
     };
   },
+  checkUserRoom: function (userId, rooms) {
+    let userRoom = null;
+    rooms.forEach((room) => {
+      if (room.players.has(userId)) {
+        userRoom = room;
+      }
+    });
+    return userRoom;
+  },
   handleReconnection: function (userId, socket, rooms, users) {
+    console.log("handleReconnection chiamato per userId " + userId);
       //quando uno user si riconnette, se era in una stanza, lo ricollego alla stanza
       if (!users.has(userId))
       {
         console.log("lo user " + userId + " si è riconnesso ma non è stato trovato nei users");
         return;
       }
-      const user = users.get(userId);
+      const user = users.get(socket.userId);
       if (user.currentRoom) {
         const roomId = user.currentRoom;
         if (!rooms.has(roomId)) {
@@ -46,6 +57,16 @@ export const utility = {
           this.userReconnectRoom(socket, roomId, rooms, users);
           return;
         }
+      } else if (this.checkUserRoom(userId, rooms)) {
+        const room = this.checkUserRoom(userId, rooms);
+        console.log(
+          "lo user " +
+              userId +
+              " si è riconnesso ed è stato ricollegato alla stanza " +
+              room.roomId,
+        );
+        this.userReconnectRoom(socket, room.roomId, rooms, users);
+        return;
       }
   },
 
@@ -111,16 +132,21 @@ export const utility = {
       return;
     }
     socket.join(roomId);
+    const user = users.get(socket.userId);
+    user.currentRoom = roomId;
     rooms.get(roomId).players.set(socket.userId, {
       userId: socket.userId,
-      userName: users.get(socket.userId).userName,
+      userName: user.userName,
+      isReady: false,
     });
-    users.get(socket.userId).currentRoom = roomId;
+    users.set(socket.userId, user);
     callback("006");
     socket.emit("007", this.toClientRoom(room));
+    
     this.io.to(roomId).emit("008", this.toClientUser(users.get(socket.userId)));
   },
   userReconnectRoom: function (socket, roomId, rooms, users) {
+    console.log("userReconnectRoom chiamato per userId " + socket.userId + " e roomId " + roomId);
     socket.join(roomId);
     rooms.get(roomId).players.set(socket.userId, {
       userId: socket.userId,
