@@ -1,3 +1,6 @@
+import { mainObjects } from "./main.js";
+
+//import { mainObjects } from "./main";
 export const utility = {
   generateUUID: function () {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
@@ -30,5 +33,9 @@ export const utility = {
       localStorage.setItem("userName", userName);
     }
     localStorage.setItem("userId", userId);
+  },
+  addUserToRoom: function (user) {
+    if (!user) return;
+    mainObjects.addUserToRoom(user);
   },
 };

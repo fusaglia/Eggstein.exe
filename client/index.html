@@ -72,9 +72,11 @@
     <!-- 🟩 ROOM SCREEN --> 
     <div id="roomScreen" class="screen hidden">
       <h2>Stanza: <span id="currentRoomName"></span></h2>
-      <p id="roomStatus">In attesa di altri giocatori...</p>
-
-      <button id="readyBtn" class="unready">Ready</button>
+      <p id="roomStatus">In attesa che gli altri giocatori mettano pronto</p>
+      <!-- Lista dei giocatori -->
+      <ul id="playersList"></ul>
+      
+      <button id="readyBtn" class="unready">Unready</button>
       <button id="leaveRoomBtn">Abbandona Stanza</button>
     </div>
 

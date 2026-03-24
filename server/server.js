@@ -80,6 +80,8 @@ io.on("connection", (socket) => {
               userId: userId,
               socket: socket,
               isOnline: true,
+              isReady: user.isReady ?? false,
+              currentRoom: user.currentRoom ?? null,
             });
             socket.userId = userId;
             utility.handleReconnection(userId, socket, rooms, users);
@@ -104,6 +106,8 @@ io.on("connection", (socket) => {
             userId: userId,
             socket: socket,
             isOnline: true,
+            isReady: user.isReady ?? false,
+            currentRoom: user.currentRoom ?? null,
           });
           socket.userId = userId;
           utility.handleReconnection(userId, socket, rooms, users);
@@ -264,6 +268,20 @@ io.on("connection", (socket) => {
       callback("009", user.isReady);
       io.to(user.currentRoom).emit("010", user.userId, user.isReady);
     });
+    socket.on("106", (callback) => {
+      console.log("messaggo 106 ricevuto");
+      if (!users.has(socket.userId)) {
+        return;
+      }
+      const user = users.get(socket.userId);
+      const roomId = user.currentRoom || utility.checkUserRoom(socket, rooms);
+      if (!roomId) {
+        console.log("lo user " + user.userId + " | " + user.userName + " non è in una stanza");
+        callback("207");
+        return;
+      }
+      utility.userLeaveRoom(socket, user, roomId, rooms, callback);
+    });
   });
   socket.on("disconnect", (reason) => {
     //messaggio di disconnessione da parte del client
@@ -280,6 +298,14 @@ io.on("connection", (socket) => {
         reason,
     );
     users.get(socket.userId).isOnline = false;
+    //emit con timeout allo user, se non risponde, eliminarlo dagli user e da tutte le stanze
+    socket.timeout(5000).emit("002", (err) => {
+      if (err) {
+        console.log("user non riconnesso entro 5 secondi, eliminazione in corso...");
+
+        users.delete(socket.userId);
+      }
+    });
   });
 });
 

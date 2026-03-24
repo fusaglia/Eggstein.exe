@@ -86,7 +86,7 @@ function generateUser() {
 // inizializza documento
 visual.initializeHtml();
 
-export const reload = {
+export const mainObjects = {
   reloadUserNameAndId: function () {
     userId = localStorage.getItem("userId");
     userName = localStorage.getItem("userName");
@@ -100,5 +100,41 @@ export const reload = {
     stanza.players = room.players;
     visual.reloadRoom(room);
     console.log("stanza aggiornata:", stanza);
+  },
+  addUserToRoom: function (user) {
+    if (!user) return;
+    //se lo user è già nella stanza, non aggiungerlo di nuovo
+    if (stanza.players && stanza.players.find((u) => u.userId === user.userId)) {
+      console.log("lo user " + user.userId + " è già nella stanza");
+      visual.updatePlayersStatus();
+      return;
+    }
+    if (!stanza.players) {
+      stanza.players = [];
+      stanza.players.push(user);
+    } else {
+      stanza.players.push(user);
+    }
+    visual.updatePlayersStatus();
+  },
+  setUserIsReady: function (userId, isReady) {
+    if (!stanza.players) return;
+    if (!userId) return;
+    const user = stanza.players.find((u) => u.userId === userId);
+    if (user) {
+      user.isReady = isReady;
+      visual.updatePlayersStatus(userId, isReady);
+    }
+  },
+  getPlayers: function () {
+    return stanza.players || [];
+  },
+  leaveRoom: function () {
+    stanza.roomId = null;
+    stanza.maxPlayer = null;
+    stanza.minPlayer = null;
+    stanza.mappa = null;
+    stanza.password = null;
+    stanza.players = null;
   },
 };

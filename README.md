@@ -25,10 +25,12 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **004**|`stanza creata`|`vuoto`|
 | **005**|`broadcast delle stanze`|`<map(rooms)>`|
 | **006**|`entrata nella stanza con successo`|`vuoto`|
-| **007**|`riconnessione alla stanza`|`<room>`|
+| **007**|`informazioni della stanza`|`<room>`|
 | **008**|`questo user si è connesso alla stanza`|`<user>`|
 | **009**|`risposta al ready dello user`|`<bool>`|
-| **010**|`questo user ha messo pronto\non pronto`|`<user>, <bool>`|
+| **010**|`questo user ha messo pronto\non pronto`|`<userId>, <bool>`|
+| **011**|`hai lasciato la stanza con successo`|`vuoto`|
+| **012**|`questo user ha lasciato la stanza`|`<userId>`|
 
 
 ---
@@ -41,6 +43,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **103**|`manda al server il rommId della stanza che vuole creare`|`<roomId>`|
 | **104**|`manda al server il rommId della stanza in cui vuole entrare`|`<roomId>`|
 | **105**|`mando alla room nel server il mio ready`|`vuoto`|
+| **106**|`voglio uscire dalla mia stanza`|`vuoto`|
 
 ---
 
@@ -53,6 +56,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **204**|`dice al client che la stanza in cui vuole entrare non esistes`|`vuoto`|
 | **205**|`dice al client che la stanza in cui vuole entrare è piena`|`vuoto`|
 | **206**|`dice al client che la password che ha inserito è sbagliata`|`vuoto`|
+| **207**|`blud non sei in nessuna stanza`|`vuoto`|
+
 
 ### 🟠 Errori Client (30N)
 | Codice | Descrizione | Contenuto |

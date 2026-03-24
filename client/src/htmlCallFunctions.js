@@ -1,4 +1,4 @@
-import { reload } from "./main.js";
+import { mainObjects } from "./main.js";
 import { socketFuncions } from "./WebSocketClient.js";
 export const visual = {
   userNameTemp: null,
@@ -24,6 +24,7 @@ export const visual = {
     createRoomPassword: document.getElementById("CreateRoomPassword"),
     createRoomMap: document.getElementById("CreateRoomMap"),
     availableRoomsList: document.getElementById("availableRoomsList"),
+    playersList: document.getElementById("playersList"),
 
     //passwordScreen
     passwordCard: document.getElementById("passwordCard"),
@@ -194,6 +195,7 @@ export const visual = {
     console.log("passwordInput inizializzato");
 
     this.elements.leaveRoomBtn.addEventListener("click", () => {
+      socketFuncions.leaveRoom();
     });
     console.log("leaveRoomBtn inizializzato");
 
@@ -209,5 +211,26 @@ export const visual = {
   reloadRoom: function (room) {
     //aggiorna la schermata della stanza con le informazioni della stanza passata come parametro
       this.elements.currentRoomName.textContent = room.roomId;
+  },
+  changeIsReady: function (isReady) {
+    if (isReady) {
+      visual.elements.readyBtn.classList.add("ready");
+      visual.elements.readyBtn.classList.remove("unready");
+      visual.elements.readyBtn.textContent = "Ready";
+    } else {  
+      visual.elements.readyBtn.classList.remove("ready");
+      visual.elements.readyBtn.classList.add("unready");
+      visual.elements.readyBtn.textContent = "Unready";
+    }
+  }, 
+  updatePlayersStatus: function () {
+    //aggiorna la lista dei giocatori e il loro stato di ready o unready
+    const players = mainObjects.getPlayers();
+    visual.elements.playersList.innerHTML = "";
+    players.forEach((player) => {
+      const listItem = document.createElement("li");
+      listItem.textContent = player.userName + (player.isReady ? " (Ready)" : " (Unready)");
+      visual.elements.playersList.appendChild(listItem);
+    });
   },
 };

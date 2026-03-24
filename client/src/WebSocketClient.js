@@ -1,6 +1,6 @@
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
-import { reload } from "./main.js";
+import { mainObjects } from "./main.js";
 export const socketFuncions = {
   socket: null,
   roomList: null,
@@ -73,14 +73,29 @@ export const socketFuncions = {
     tSocket.on("007", (room) => {
       console.log("messaggio 007 ricevuto");
       console.log("Informazioni stanza:", room);
-      reload.reloadRoom(room);
+      mainObjects.reloadRoom(room);
       visual.hideElement(visual.elements.passwordCard);
       visual.showScreen(visual.screens.roomScreen);
     });
-    tSocket.on("009", () => {
+    tSocket.on("008", (user) => {
+      console.log("messaggio 008 ricevuto");
+      console.log("Informazioni utente entrato nella mia stanza:", user);
+      mainObjects.addUserToRoom(user);
+    });
+    tSocket.on("009", (bool) => {
       console.log("messaggio 009 ricevuto");
-      visual.elements.readyBtn.classList.toggle("ready");
-      visual.elements.readyBtn.classList.toggle("unready");
+      this.isReady = bool;
+      visual.changeIsReady(bool);
+    });
+    tSocket.on("010", (userId, isReady) => {
+      console.log("messaggio 010 ricevuto");
+      console.log("Lo user " + userId + " è " + (isReady ? "ready" : "unready"));
+      mainObjects.setUserIsReady(userId, isReady);
+    });
+    tSocket.on("012", (userId) => {
+      //il player userId ha lasciato la stanza
+      console.log("messaggio 012 ricevuto");
+      console.log("Lo user " + userId + " ha lasciato la stanza");
     });
     this.socket = tSocket;
     return tSocket;
@@ -141,13 +156,7 @@ export const socketFuncions = {
         switch (response) {
           case "009":
             this.isReady = isReady;
-            if (this.isReady) {
-              visual.elements.readyBtn.classList.add("ready");
-              visual.elements.readyBtn.classList.remove("unready");
-            } else {
-              visual.elements.readyBtn.classList.remove("ready");
-              visual.elements.readyBtn.classList.add("unready");
-            }
+            visual.changeIsReady(isReady);
             break;
           default:
             console.log("errore sconosciuto: " + response);
@@ -155,5 +164,24 @@ export const socketFuncions = {
       }
     });
     visual.elements.readyBtn.disabled = false;
+  },
+  leaveRoom: async function () {
+    visual.elements.leaveRoomBtn.disabled = true;
+    await this.socket.timeout(3000).emit("106", (err, response) => {
+      console.log("messaggio 106 mandato");
+      if (err) console.error("err: " + err);
+      switch (response) {
+        case "011":
+          visual.showScreen(visual.screens.lobbyScreen);
+          mainObjects.leaveRoom();
+          break;
+        case "206":
+          console.log("non sono in nessuna stanza: " + response);
+          break;
+        default:
+          console.log("errore sconosciuto: " + response);
+      }
+    });
+    visual.elements.leaveRoomBtn.disabled = false;
   },
 };
