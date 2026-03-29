@@ -31,6 +31,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **010**|`questo user ha messo pronto\non pronto`|`<userId>, <bool>`|
 | **011**|`hai lasciato la stanza con successo`|`vuoto`|
 | **012**|`questo user ha lasciato la stanza`|`<userId>`|
+| **013**|`timer per l'inizio della stanza`|`<second>`|
+| **014**|`inizia la partita`|`vuoto`|
 
 
 ---
@@ -57,6 +59,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **205**|`dice al client che la stanza in cui vuole entrare è piena`|`vuoto`|
 | **206**|`dice al client che la password che ha inserito è sbagliata`|`vuoto`|
 | **207**|`blud non sei in nessuna stanza`|`vuoto`|
+| **208**|`il tuo user id ha qualcosa di strano`|`vuoto`|
+| **209**|`c'è stato un problema, l'inizializzazione della partita è stato interroto`|`vuoto`|
 
 
 ### 🟠 Errori Client (30N)

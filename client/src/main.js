@@ -117,6 +117,11 @@ export const mainObjects = {
     }
     visual.updatePlayersStatus();
   },
+  removeUserFromRoom: function (userId) {
+    if (!stanza.players) return;
+    stanza.players = stanza.players.filter((u) => u.userId !== userId);
+    visual.updatePlayersStatus();
+  },
   setUserIsReady: function (userId, isReady) {
     if (!stanza.players) return;
     if (!userId) return;

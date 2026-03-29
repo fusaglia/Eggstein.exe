@@ -39,6 +39,12 @@ export const socketFuncions = {
       );*/
       });
 
+      tSocket.on("202", () => {
+        console.log("messaggio 202 ricevuto");
+        // Username non valido: per ora riusa la schermata warning esistente.
+        visual.showScreen(visual.screens.userIdWarning);
+      });
+
       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       tSocket.on("002", (callback) => {
         console.log("messaggio 002 ricevuto");
@@ -67,6 +73,27 @@ export const socketFuncions = {
       tRoomList.forEach((room) => {
         const listItem = document.createElement("li");
         listItem.textContent = `ID: ${room.roomId} - Players: ${room.players}/${room.maxPlayer} - Password: ${room.password} - Mappa: ${room.mappa}`;
+        listItem.classList.add("clickable-room");
+        listItem.setAttribute("role", "button");
+        listItem.tabIndex = 0;
+
+        const joinRoomFromList = () => {
+          visual.elements.roomIdInput.value = room.roomId;
+          visual.hideElement(visual.elements.passwordError);
+          if (room.password === "Yes") {
+            visual.showElement(visual.elements.passwordCard);
+            return;
+          }
+          this.joinRoom(room.roomId);
+        };
+
+        listItem.addEventListener("click", joinRoomFromList);
+        listItem.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            joinRoomFromList();
+          }
+        });
         visual.elements.availableRoomsList.appendChild(listItem);
       });
     });
@@ -74,6 +101,7 @@ export const socketFuncions = {
       console.log("messaggio 007 ricevuto");
       console.log("Informazioni stanza:", room);
       mainObjects.reloadRoom(room);
+      visual.resetStartCountdown();
       visual.hideElement(visual.elements.passwordCard);
       visual.showScreen(visual.screens.roomScreen);
     });
@@ -96,6 +124,25 @@ export const socketFuncions = {
       //il player userId ha lasciato la stanza
       console.log("messaggio 012 ricevuto");
       console.log("Lo user " + userId + " ha lasciato la stanza");
+      mainObjects.removeUserFromRoom(userId);
+    });
+    tSocket.on("013", (second, callback) => {
+      console.log("messaggio 013 ricevuto");
+      console.log("Secondi rimanenti: " + second);
+      visual.showStartCountdown(second);
+      callback(this.isReady);
+    });
+    tSocket.on("209", () => {
+      console.log("messaggio 209 ricevuto");
+      //errore nell'inizzializzazione della partita, qualcuno ha tolto il pronto o si è disconnesso
+      visual.resetStartCountdown();
+    });
+    tSocket.on("014", (roomId) => {
+      console.log("messaggio 014 ricevuto");
+      visual.showScreen(visual.screens.gameScreen);
+      visual.hideElement(visual.elements.gameTitle);
+      visual.hideElement(visual.elements.debugHeader);
+      console.log("La partita nella stanza è iniziata");
     });
     this.socket = tSocket;
     return tSocket;
@@ -116,6 +163,7 @@ export const socketFuncions = {
       });
     console.log("messaggio 103 mandato");
     visual.elements.createRoomBtn.disabled = false;
+    this.joinRoom(roomId, attributes.password);
     return;
   },
 
@@ -172,6 +220,7 @@ export const socketFuncions = {
       if (err) console.error("err: " + err);
       switch (response) {
         case "011":
+          visual.resetStartCountdown();
           visual.showScreen(visual.screens.lobbyScreen);
           mainObjects.leaveRoom();
           break;

@@ -51,12 +51,17 @@ io.on("connection", (socket) => {
 
   socket.on("101", (userId, userName) => {
     console.log("messaggio 101 ricevuto da socket: " + socket.id);
+    if (userId === undefined || userId === null || userId === "") {
+      socket.emit("208");
+      console.log("messaggio 208 mandato");
+      return;
+    }
     if (!utility.checkUserName(userName)) {
-      socket.emit("201");
+      socket.emit("202");
       console.log(
         "lo userName " + userName + " dello user " + userId + " non è valido",
       );
-      console.log("messaggio 201 mandato");
+      console.log("messaggio 202 mandato");
       return;
     }
     //se uno user con lo stesso userId si è gia collegato in precendeza
@@ -83,13 +88,21 @@ io.on("connection", (socket) => {
               isReady: user.isReady ?? false,
               currentRoom: user.currentRoom ?? null,
             });
-            socket.userId = userId;
+            utility.completeAuthentication(
+              socket,
+              userId,
+              rooms,
+              users,
+              minPlayer,
+              maxPlayer,
+            );
             utility.handleReconnection(userId, socket, rooms, users);
           } else {
             socket.emit("201");
             console.log("messaggio 201 mandato");
           }
         });
+        return;
       } else {
         //se lo user non è online
         //se il client appena collegato ha sia lo stesso userId che lo stesso userName
@@ -109,12 +122,21 @@ io.on("connection", (socket) => {
             isReady: user.isReady ?? false,
             currentRoom: user.currentRoom ?? null,
           });
-          socket.userId = userId;
+          utility.completeAuthentication(
+            socket,
+            userId,
+            rooms,
+            users,
+            minPlayer,
+            maxPlayer,
+          );
           utility.handleReconnection(userId, socket, rooms, users);
+          return;
         } else {
           //è un user diverso con lo stesso userId
           socket.emit("201");
           console.log("messaggio 201 mandato");
+          return;
         }
       }
     } else {
@@ -127,161 +149,17 @@ io.on("connection", (socket) => {
         isReady: false,
         currentRoom: null,
       });
-      socket.userId = userId;
-      utility.handleFirstConnection(userId);
-    }
-    socket.emit("005", utility.getRoomList(rooms));
-    socket.on("102", (userName) => {
-      console.log("messaggo 102 ricevuto");
-      if (users.has(socket.userId)) {
-        users.get(socket.userId).userName = userName;
-      }
-      socket.emit("003");
-      console.log("messaggo 003 mandato");
-    });
-    socket.on("103", (roomId, attributes, callback) => {
-      console.log("messaggo 103 ricevuto");
-      if (rooms.has(roomId)) {
-        console.log("la stanza " + roomId + " esiste già");
-        callback("203");
-        return;
-      }
-      console.log("creazione stanza " + roomId);
-      const tempRoom = {
-        roomId: roomId,
-        players: new Map(),
-        maxPlayer: attributes.maxPlayer || maxPlayer,
-        minPlayer: minPlayer,
-        mappa: attributes.mappa || "mappa1",
-        password: attributes.password,
-      };
-      console.log("attributi stanza: " + JSON.stringify(tempRoom));
-      rooms.set(roomId, tempRoom);
-      console.log("stanza " + roomId + " creata");
-      callback("004");
-      io.emit("005", utility.getRoomList(rooms));
-    });
-    socket.on("104", (roomId, password, callback) => {
-      console.log("messaggo 104 ricevuto");
-      if (!users.has(socket.userId)) {
-        return;
-      }
-      const user = users.get(socket.userId);
-      console.log(
-        "lo user " +
-          user.userId +
-          " | " +
-          user.userName +
-          " vuole entrare nella stanza " +
-          roomId,
+      utility.completeAuthentication(
+        socket,
+        userId,
+        rooms,
+        users,
+        minPlayer,
+        maxPlayer,
       );
-      if (!rooms.has(roomId)) {
-        console.log("la stanza " + roomId + " non esiste");
-        callback("204");
-        return;
-      }
-      if (rooms.get(roomId).password) {
-        console.log("la stanza " + roomId + " è protetta da password");
-        if (rooms.get(roomId).password !== password) {
-          console.log("password sbagliata per la stanza " + roomId);
-          callback("206");
-          return;
-        }
-      }
-      if (rooms.get(roomId).players.size >= rooms.get(roomId).maxPlayer) {
-        //controlla se nella stanza ci sono dei dublicati di userId, se si, rimuovili e permetti al nuovo user di entrare, altrimenti rifiuta l'ingresso
-        const room = rooms.get(roomId);
-        let duplicateFound = false;
-        room.players.forEach((value, key) => {
-          const tempMap = new Map();
-          if (tempMap.has(value.userId)) {
-            duplicateFound = true;
-            room.players.delete(key);
-          }
-          tempMap.set(value.userId, true);
-        });
-        if (duplicateFound) {
-          console.log(
-            "la stanza " +
-              roomId +
-              " era piena ma è stato trovato un duplicato, quindi è stato rimosso e il nuovo user è entrato",
-          );
-          utility.userEnterRoom(socket, roomId, rooms, users, callback);
-          return;
-        }
-        console.log("la stanza " + roomId + " è piena");
-        callback("205");
-        return;
-      } else {
-        console.log(
-          "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " è entrato nella stanza " +
-            roomId,
-        );
-        utility.userEnterRoom(socket, roomId, rooms, users, callback);
-      }
-    });
-    socket.on("105", (callback) => {
-      console.log("messaggo 105 ricevuto");
-      if (!users.has(socket.userId)) {
-        return;
-      }
-      const user = users.get(socket.userId);
-      if (user.isReady === true) {
-        console.log(
-          "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " della stanza " +
-            user.currentRoom +
-            "ha tolto il ready",
-        );
-        user.isReady = false;
-      } else if (user.isReady === false) {
-        console.log(
-          "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " della stanza " +
-            user.currentRoom +
-            " è ready",
-        );
-        user.isReady = true;
-      } else {
-        console.log(
-          "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " della stanza " +
-            user.currentRoom +
-            " ha un valore di ready non valido: " +
-            user.isReady,
-        );
-        user.isReady = false;
-      }
-      callback("009", user.isReady);
-      io.to(user.currentRoom).emit("010", user.userId, user.isReady);
-    });
-    socket.on("106", (callback) => {
-      console.log("messaggo 106 ricevuto");
-      if (!users.has(socket.userId)) {
-        return;
-      }
-      const user = users.get(socket.userId);
-      const roomId = user.currentRoom || utility.checkUserRoom(socket, rooms);
-      if (!roomId) {
-        console.log("lo user " + user.userId + " | " + user.userName + " non è in una stanza");
-        callback("207");
-        return;
-      }
-      utility.userLeaveRoom(socket, user, roomId, rooms, callback);
-    });
+      utility.handleFirstConnection(userId);
+      return;
+    }
   });
   socket.on("disconnect", (reason) => {
     //messaggio di disconnessione da parte del client
@@ -289,6 +167,7 @@ io.on("connection", (socket) => {
       return;
     }
     const user = users.get(socket.userId);
+    const disconnectedSocketId = socket.id;
     console.log(
       "the user " +
         user.userId +
@@ -301,8 +180,24 @@ io.on("connection", (socket) => {
     //emit con timeout allo user, se non risponde, eliminarlo dagli user e da tutte le stanze
     socket.timeout(5000).emit("002", (err) => {
       if (err) {
-        console.log("user non riconnesso entro 5 secondi, eliminazione in corso...");
+        const currentUser = users.get(socket.userId);
+        if (!currentUser) {
+          return;
+        }
+        if (
+          currentUser.isOnline ||
+          !currentUser.socket ||
+          currentUser.socket.id !== disconnectedSocketId
+        ) {
+          console.log(
+            "lo user " +
+              socket.userId +
+              " si è riconnesso entro il timeout, nessuna eliminazione",
+          );
+          return;
+        }
 
+        console.log("user non riconnesso entro 5 secondi, eliminazione in corso...");
         users.delete(socket.userId);
       }
     });

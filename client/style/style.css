@@ -194,6 +194,21 @@ button:active {
   border-bottom: 1px solid #3b3b3b;
 }
 
+#lobbyScreen #availableRoomsList li.clickable-room {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#lobbyScreen #availableRoomsList li.clickable-room:hover {
+  background: #313131;
+}
+
+#lobbyScreen #availableRoomsList li.clickable-room:focus {
+  outline: 2px solid #9ad1ff;
+  outline-offset: -2px;
+  background: #313131;
+}
+
 #lobbyScreen #availableRoomsList li:last-child {
   border-bottom: none;
 }

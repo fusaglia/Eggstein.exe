@@ -36,7 +36,9 @@ export const utility = {
     //quando uno user si riconnette, se era in una stanza, lo ricollego alla stanza
     if (!users.has(userId)) {
       console.log(
-        "lo user " + userId + " si è riconnesso ma non è stato trovato nei users",
+        "lo user " +
+          userId +
+          " si è riconnesso ma non è stato trovato nei users",
       );
       return;
     }
@@ -100,6 +102,232 @@ export const utility = {
     });
     return roomList;
   },
+  bindAuthenticatedHandlers: function (
+    socket,
+    rooms,
+    users,
+    minPlayer,
+    maxPlayer,
+  ) {
+    if (socket.data.handlersBound) {
+      return;
+    }
+    socket.data.handlersBound = true;
+
+    socket.on("102", (userName) => {
+      console.log("messaggo 102 ricevuto");
+      if (users.has(socket.userId)) {
+        users.get(socket.userId).userName = userName;
+      }
+      socket.emit("003");
+      console.log("messaggo 003 mandato");
+    });
+
+    socket.on("103", (roomId, attributes, callback) => {
+      console.log("messaggo 103 ricevuto");
+      if (rooms.has(roomId)) {
+        console.log("la stanza " + roomId + " esiste già");
+        callback("203");
+        return;
+      }
+      console.log("creazione stanza " + roomId);
+      const tempRoom = {
+        roomId: roomId,
+        players: new Map(),
+        maxPlayer: attributes.maxPlayer || maxPlayer,
+        minPlayer: minPlayer,
+        mappa: attributes.mappa || "mappa1",
+        password: attributes.password,
+        isPlaying: false,
+      };
+      console.log("attributi stanza: " + JSON.stringify(tempRoom));
+      rooms.set(roomId, tempRoom);
+      console.log("stanza " + roomId + " creata");
+      callback("004");
+      this.io.emit("005", this.getRoomList(rooms));
+    });
+
+    socket.on("104", (roomId, password, callback) => {
+      console.log("messaggo 104 ricevuto");
+      if (!users.has(socket.userId)) {
+        console.log(
+          "lo user con socketId " +
+            socket.id +
+            " e userID " +
+            socket.userId +
+            " non ha un userId valido",
+        );
+        callback("208");
+        return;
+      }
+      const user = users.get(socket.userId);
+      console.log(
+        "lo user " +
+          user.userId +
+          " | " +
+          user.userName +
+          " vuole entrare nella stanza " +
+          roomId,
+      );
+      if (!rooms.has(roomId)) {
+        console.log("la stanza " + roomId + " non esiste");
+        callback("204");
+        return;
+      }
+      if (rooms.get(roomId).password) {
+        console.log("la stanza " + roomId + " è protetta da password");
+        if (rooms.get(roomId).password !== password) {
+          console.log("password sbagliata per la stanza " + roomId);
+          callback("206");
+          return;
+        }
+      }
+      if (rooms.get(roomId).players.size >= rooms.get(roomId).maxPlayer) {
+        //controlla se nella stanza ci sono dei dublicati di userId, se si, rimuovili e permetti al nuovo user di entrare, altrimenti rifiuta l'ingresso
+        const room = rooms.get(roomId);
+        let duplicateFound = false;
+        room.players.forEach((value, key) => {
+          const tempMap = new Map();
+          if (tempMap.has(value.userId)) {
+            duplicateFound = true;
+            room.players.delete(key);
+          }
+          tempMap.set(value.userId, true);
+        });
+        if (duplicateFound) {
+          console.log(
+            "la stanza " +
+              roomId +
+              " era piena ma è stato trovato un duplicato, quindi è stato rimosso e il nuovo user è entrato",
+          );
+          this.userEnterRoom(socket, roomId, rooms, users, callback);
+          return;
+        }
+        console.log("la stanza " + roomId + " è piena");
+        callback("205");
+        return;
+      }
+
+      console.log(
+        "lo user " +
+          user.userId +
+          " | " +
+          user.userName +
+          " è entrato nella stanza " +
+          roomId,
+      );
+      this.userEnterRoom(socket, roomId, rooms, users, callback);
+    });
+
+    socket.on("105", (callback) => {
+      console.log("messaggo 105 ricevuto");
+      if (!users.has(socket.userId)) {
+        console.log(
+          "lo user con socketId " +
+            socket.id +
+            " e userID " +
+            socket.userId +
+            " non è negli users",
+        );
+        callback("208");
+        return;
+      }
+      const user = users.get(socket.userId);
+      if (user.isReady === true) {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " della stanza " +
+            user.currentRoom +
+            "ha tolto il ready",
+        );
+        user.isReady = false;
+      } else if (user.isReady === false) {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " della stanza " +
+            user.currentRoom +
+            " è ready",
+        );
+        user.isReady = true;
+      } else {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " della stanza " +
+            user.currentRoom +
+            " ha un valore di ready non valido: " +
+            user.isReady,
+        );
+        user.isReady = false;
+      }
+      callback("009", user.isReady);
+      this.io.to(user.currentRoom).emit("010", user.userId, user.isReady);
+      rooms.get(user.currentRoom).players.set(user.userId, {
+        userId: user.userId,
+        userName: user.userName,
+        isReady: user.isReady,
+      });
+      //controllo se tutti i player della stanza sono ready, se si, inizia il timer per l'inizio della partita (per ora 5 secondi), se durante il timer qualcuno toglie il ready, annullo il timer
+      const room = rooms.get(user.currentRoom);
+      let allReady = true;
+      room.players.forEach((value, key) => {
+        if (!value.isReady) {
+          allReady = false;
+        }
+      });
+      if (!allReady) return;
+      this.startRoomReadyTimer(user.currentRoom, rooms, users);
+    });
+
+    socket.on("106", (callback) => {
+      console.log("messaggo 106 ricevuto");
+      if (!users.has(socket.userId)) {
+        console.log(
+          "lo user con socketId " +
+            socket.id +
+            " e userID " +
+            socket.userId +
+            " non è negli users",
+        );
+        callback("208");
+        return;
+      }
+      const user = users.get(socket.userId);
+      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      if (!roomId) {
+        console.log(
+          "lo user " +
+            user.userId +
+            " | " +
+            user.userName +
+            " non è in una stanza",
+        );
+        callback("207");
+        return;
+      }
+      this.userLeaveRoom(socket, user, roomId, rooms, users, callback);
+    });
+  },
+  completeAuthentication: function (
+    socket,
+    userId,
+    rooms,
+    users,
+    minPlayer,
+    maxPlayer,
+  ) {
+    socket.userId = userId;
+    socket.emit("005", this.getRoomList(rooms));
+    this.bindAuthenticatedHandlers(socket, rooms, users, minPlayer, maxPlayer);
+  },
   userEnterRoom: function (socket, roomId, rooms, users, callback) {
     if (!socket.userId) {
       console.log(
@@ -126,7 +354,7 @@ export const utility = {
       console.log("la stanza " + roomId + " non esiste");
       return;
     }
-    const room = rooms.get(roomId);
+    let room = rooms.get(roomId);
     if (room.players.size >= room.maxPlayer) {
       console.log("la stanza " + roomId + " è piena");
       return;
@@ -142,11 +370,25 @@ export const utility = {
     users.set(socket.userId, user);
     callback("006");
     socket.emit("007", this.toClientRoom(room));
-    
+
     this.io.to(roomId).emit("008", this.toClientUser(users.get(socket.userId)));
+    room = rooms.get(user.currentRoom);
+    let allReady = true;
+    room.players.forEach((value, key) => {
+      if (!value.isReady) {
+        allReady = false;
+      }
+    });
+    if (!allReady) return;
+    this.startRoomReadyTimer(user.currentRoom, rooms, users);
   },
   userReconnectRoom: function (socket, roomId, rooms, users) {
-    console.log("userReconnectRoom chiamato per userId " + socket.userId + " e roomId " + roomId);
+    console.log(
+      "userReconnectRoom chiamato per userId " +
+        socket.userId +
+        " e roomId " +
+        roomId,
+    );
     socket.join(roomId);
     rooms.get(roomId).players.set(socket.userId, {
       userId: socket.userId,
@@ -157,9 +399,12 @@ export const utility = {
     socket.emit("007", this.toClientRoom(room));
     socket.emit("009", room.players.get(socket.userId).isReady);
     this.io.to(roomId).emit("008", this.toClientUser(users.get(socket.userId)));
+    if (room.isPlaying) {
+      socket.emit("014", roomId);
+      return;
+    }
   },
-  userDeletion: function (socket, rooms, users) {
-  },
+  userDeletion: function (socket, rooms, users) {},
   userLeaveRoom: function (socket, user, roomId, rooms, users, callback) {
     if (!users.has(socket.userId)) {
       console.log(
@@ -175,5 +420,56 @@ export const utility = {
     users.set(socket.userId, user);
     callback("011");
     this.io.to(roomId).emit("012", socket.userId);
+  },
+  startRoomReadyTimer: async function (roomId, rooms) {
+    const userNumber = rooms.get(roomId).players.size;
+    console.log(
+      "startRoomReadyTimer chiamato per la stanza " +
+        roomId +
+        ", tra 5 secondi inizia la partita se tutti i player sono ancora ready",
+    );
+    for (let i = 5; i >= 0; i--) {
+      await this.io
+        .timeout(1000)
+        .to(roomId)
+        .emit("013", i, (err, response) => {
+          if (err) {
+            console.log(
+              "startRoomReadyTimer annullato per la stanza " +
+                roomId +
+                " perché un player ha tolto il ready",
+            );
+            this.io.to(roomId).emit("209");
+            return;
+          }
+          if (!response) {
+            console.log(
+              "startRoomReadyTimer annullato per la stanza " +
+                roomId +
+                " perché un player ha tolto il ready",
+            );
+            this.io.to(roomId).emit("209");
+            return;
+          }
+        });
+      const room = rooms.get(roomId);
+      let allReady = true;
+      room.players.forEach((value, key) => {
+        if (!value.isReady) {
+          allReady = false;
+        }
+      });
+      if (!allReady || room.players.size !== userNumber) {
+        this.io.to(roomId).emit("209");
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    //qui inizia la partita
+    this.startGame(roomId, rooms);
+  },
+  startGame: function (roomId, rooms) {
+    rooms.get(roomId).isPlaying = true;
+    this.io.emit("014", roomId);
   },
 };

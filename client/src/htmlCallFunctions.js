@@ -11,6 +11,9 @@ export const visual = {
     userNameChoosingScreen: document.getElementById("userNameChoosingScreen"),
   },
   elements: {
+    //body
+    gameTitle: document.getElementById("gameTitle"),
+
     //userNameChoosingScreen
     userNameInput: document.getElementById("userNameInput"),
     userNameBtn: document.getElementById("userNameBtn"),
@@ -36,6 +39,7 @@ export const visual = {
     roomInfo: document.getElementById("roomInfo"),
     playersList: document.getElementById("playersList"),
     currentRoomName: document.getElementById("currentRoomName"),
+    startGameTimer: document.getElementById("startGameTimer"),
     readyBtn: document.getElementById("readyBtn"),
     leaveRoomBtn: document.getElementById("leaveRoomBtn"),
   },
@@ -211,6 +215,18 @@ export const visual = {
   reloadRoom: function (room) {
     //aggiorna la schermata della stanza con le informazioni della stanza passata come parametro
       this.elements.currentRoomName.textContent = room.roomId;
+      this.resetStartCountdown();
+  },
+  showStartCountdown: function (seconds) {
+    if (!this.elements.startGameTimer) return;
+    this.elements.startGameTimer.textContent =
+      "Inizio partita tra " + seconds + " secondi...";
+    this.showElement(this.elements.startGameTimer);
+  },
+  resetStartCountdown: function () {
+    if (!this.elements.startGameTimer) return;
+    this.elements.startGameTimer.textContent = "Inizio partita tra 5 secondi...";
+    this.hideElement(this.elements.startGameTimer);
   },
   changeIsReady: function (isReady) {
     if (isReady) {
