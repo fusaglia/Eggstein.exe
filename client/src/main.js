@@ -37,7 +37,7 @@ const config = {
     scene: [BootScene]
 };
 
-const game = null;
+let game = null;
 // resize
 
 
