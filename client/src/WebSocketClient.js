@@ -143,6 +143,7 @@ export const socketFuncions = {
       visual.hideElement(visual.elements.gameTitle);
       visual.hideElement(visual.elements.debugHeader);
       console.log("La partita nella stanza è iniziata");
+      mainObjects.startGame();
     });
     this.socket = tSocket;
     return tSocket;

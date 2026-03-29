@@ -207,6 +207,7 @@ export const visual = {
       socketFuncions.readyUnready();
     });
     console.log("readyBtn inizializzato");
+    return;
   },
 
   invalidUserNameAnimation: function () {
@@ -222,6 +223,10 @@ export const visual = {
     this.elements.startGameTimer.textContent =
       "Inizio partita tra " + seconds + " secondi...";
     this.showElement(this.elements.startGameTimer);
+    if (seconds <= 0) {
+      this.elements.leaveRoomBtn.disabled = true;
+      this.elements.readyBtn.disabled = true;
+    }
   },
   resetStartCountdown: function () {
     if (!this.elements.startGameTimer) return;

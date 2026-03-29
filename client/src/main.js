@@ -26,7 +26,8 @@ const stanza = {};
 // Cambio schermate
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
+//game utils 
+
 const imageCache = new Map();
 const config = {
     type: Phaser.AUTO,
@@ -36,15 +37,9 @@ const config = {
     scene: [BootScene]
 };
 
-const game = new Phaser.Game(config);
-
+const game = null;
 // resize
-window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-});
-*/
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// funzioni utility
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEBUG
@@ -83,8 +78,7 @@ function generateUser() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// inizializza documento
-visual.initializeHtml();
+//funzioni main
 
 export const mainObjects = {
   reloadUserNameAndId: function () {
@@ -142,4 +136,22 @@ export const mainObjects = {
     stanza.password = null;
     stanza.players = null;
   },
+  startGame: function () {
+  game = new Phaser.Game(config);
+  window.addEventListener('resize', () => {
+    game.scale.resize(window.innerWidth, window.innerHeight);
+});
+}
 };
+
+
+
+async function inizialize() {
+  await visual.initializeHtml();
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// inizializza documento
+inizialize();
