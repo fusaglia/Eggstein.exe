@@ -28,49 +28,82 @@ const ROCK_TYPES = {
     textureW: 100,
     textureH: 80,
     draw(g) {
-      g.fillStyle(0x6d7078, 1);
-      g.fillPoints(
-        [
-          { x: 18, y: 62 },
-          { x: 6, y: 40 },
-          { x: 16, y: 18 },
-          { x: 40, y: 6 },
-          { x: 70, y: 10 },
-          { x: 90, y: 28 },
-          { x: 94, y: 54 },
-          { x: 76, y: 70 },
-          { x: 36, y: 76 },
-        ],
-        true,
-      );
-      g.fillStyle(0x9a9ea8, 0.85);
-      g.fillPoints(
-        [
-          { x: 26, y: 28 },
-          { x: 40, y: 12 },
-          { x: 62, y: 16 },
-          { x: 68, y: 32 },
-          { x: 50, y: 44 },
-          { x: 28, y: 42 },
-        ],
-        true,
-      );
-      g.fillStyle(0x4a4d53, 0.7);
-      g.fillPoints(
-        [
-          { x: 56, y: 50 },
-          { x: 76, y: 58 },
-          { x: 82, y: 66 },
-          { x: 56, y: 72 },
-          { x: 44, y: 62 },
-        ],
-        true,
-      );
-      g.lineStyle(1.5, 0x3d3f44, 0.7);
+      const body = [
+        { x: 16, y: 63 },
+        { x: 6, y: 39 },
+        { x: 17, y: 18 },
+        { x: 39, y: 5 },
+        { x: 71, y: 9 },
+        { x: 91, y: 27 },
+        { x: 95, y: 53 },
+        { x: 77, y: 71 },
+        { x: 37, y: 76 },
+      ];
+      const highlight = [
+        { x: 25, y: 29 },
+        { x: 39, y: 12 },
+        { x: 61, y: 16 },
+        { x: 68, y: 31 },
+        { x: 50, y: 45 },
+        { x: 28, y: 43 },
+      ];
+      const shadow = [
+        { x: 71, y: 9 },
+        { x: 91, y: 27 },
+        { x: 95, y: 53 },
+        { x: 77, y: 71 },
+        { x: 37, y: 76 },
+        { x: 50, y: 45 },   
+        { x: 66, y: 31 },       
+        { x: 62, y: 17 },
+         
+      ];
+
+      g.fillStyle(0x555961, 1);
+      g.fillPoints(body, true);
+      g.fillStyle(0x9ca2ad, 0.82);
+      g.fillPoints(highlight, true);
+      g.fillStyle(0x3b3e44, 0.8);
+      g.fillPoints(shadow, true);
+
+      g.fillStyle(0xb9bec9, 0.42);
+      g.fillCircle(31, 26, 4);
+      g.fillCircle(47, 16, 3);
+      g.fillCircle(66, 21, 5);
+      g.fillCircle(74, 34, 3);
+      g.fillCircle(58, 45, 4);
+
+      g.fillStyle(0x41444a, 0.55);
+      g.fillCircle(22, 44, 3);
+      g.fillCircle(35, 57, 2);
+      g.fillCircle(51, 63, 3);
+      g.fillCircle(79, 52, 2);
+      g.fillCircle(86, 40, 3);
+
+      g.lineStyle(1.6, 0x2f3136, 0.9);
       g.beginPath();
-      g.moveTo(50, 18);
-      g.lineTo(44, 36);
+      g.moveTo(16, 63);
+      g.lineTo(6, 39);
+      g.lineTo(17, 18);
+      g.lineTo(39, 5);
+      g.lineTo(71, 9);
+      g.lineTo(91, 27);
+      g.lineTo(95, 53);
+      g.lineTo(77, 71);
+      g.lineTo(37, 76);
+      g.lineTo(16, 63);
+      g.strokePath();
+
+      g.lineStyle(1, 0x474b52, 0.6);
+      g.beginPath();
+      g.moveTo(49, 18);
+      g.lineTo(43, 35);
       g.lineTo(52, 50);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(57, 26);
+      g.lineTo(66, 36);
+      g.lineTo(61, 49);
       g.strokePath();
     },
     // cx, cy = centro cerchio in coordinate texture (px non scalati)
@@ -87,44 +120,58 @@ const ROCK_TYPES = {
     textureW: 90,
     textureH: 96,
     draw(g) {
-      g.fillStyle(0x9c6b45, 1);
-      g.fillPoints(
-        [
-          { x: 20, y: 88 },
-          { x: 4, y: 56 },
-          { x: 12, y: 28 },
-          { x: 30, y: 8 },
-          { x: 54, y: 2 },
-          { x: 74, y: 16 },
-          { x: 86, y: 44 },
-          { x: 82, y: 74 },
-          { x: 58, y: 92 },
-        ],
-        true,
-      );
-      g.fillStyle(0xc4875a, 0.8);
-      g.fillPoints(
-        [
-          { x: 24, y: 40 },
-          { x: 34, y: 12 },
-          { x: 58, y: 10 },
-          { x: 66, y: 34 },
-          { x: 50, y: 52 },
-          { x: 28, y: 48 },
-        ],
-        true,
-      );
-      g.fillStyle(0x6e4228, 0.65);
-      g.fillPoints(
-        [
-          { x: 48, y: 60 },
-          { x: 74, y: 70 },
-          { x: 78, y: 84 },
-          { x: 52, y: 90 },
-        ],
-        true,
-      );
-      g.lineStyle(1.2, 0x5c3520, 0.75);
+      const body = [
+        { x: 20, y: 88 },
+        { x: 4, y: 56 },
+        { x: 12, y: 28 },
+        { x: 30, y: 8 },
+        { x: 54, y: 2 },
+        { x: 74, y: 16 },
+        { x: 86, y: 44 },
+        { x: 82, y: 74 },
+        { x: 58, y: 92 },
+      ];
+      const highlight = [
+        { x: 23, y: 40 },
+        { x: 34, y: 12 },
+        { x: 58, y: 10 },
+        { x: 66, y: 34 },
+        { x: 50, y: 52 },
+        { x: 28, y: 48 },
+      ];
+      const shadow = [
+        { x: 54, y: 2 },
+        { x: 74, y: 16 },
+        { x: 86, y: 44 },
+        { x: 82, y: 74 },
+        { x: 58, y: 92 },
+        { x: 50, y: 52 },
+        { x: 64, y: 33 },
+        
+      ];
+
+      g.fillStyle(0x8e603e, 1);
+      g.fillPoints(body, true);
+      g.fillStyle(0xc78d61, 0.82);
+      g.fillPoints(highlight, true);
+      g.fillStyle(0x6c442b, 0.72);
+      g.fillPoints(shadow, true);
+
+      g.fillStyle(0xe7c39a, 0.24);
+      g.fillCircle(24, 30, 4);
+      g.fillCircle(39, 18, 3);
+      g.fillCircle(52, 26, 5);
+      g.fillCircle(61, 42, 3);
+      g.fillCircle(45, 56, 4);
+
+      g.fillStyle(0x7b4b2d, 0.45);
+      g.fillCircle(18, 60, 3);
+      g.fillCircle(29, 70, 2);
+      g.fillCircle(43, 79, 3);
+      g.fillCircle(67, 74, 2);
+      g.fillCircle(76, 58, 3);
+        
+      g.lineStyle(1.4, 0x5b3420, 0.82);
       g.beginPath();
       g.moveTo(42, 16);
       g.lineTo(38, 38);
@@ -133,6 +180,18 @@ const ROCK_TYPES = {
       g.beginPath();
       g.moveTo(60, 28);
       g.lineTo(64, 48);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(28, 58);
+      g.lineTo(40, 66);
+      g.lineTo(50, 82);
+      g.strokePath();
+
+      g.lineStyle(1, 0xd9b38a, 0.22);
+      g.beginPath();
+      g.moveTo(24, 38);
+      g.lineTo(34, 22);
+      g.lineTo(48, 18);
       g.strokePath();
     },
     sensorCircles: [
@@ -146,45 +205,83 @@ const ROCK_TYPES = {
     textureW: 120,
     textureH: 66,
     draw(g) {
-      g.fillStyle(0x2e2e38, 1);
-      g.fillPoints(
-        [
-          { x: 8, y: 52 },
-          { x: 2, y: 32 },
-          { x: 20, y: 12 },
-          { x: 52, y: 4 },
-          { x: 90, y: 8 },
-          { x: 114, y: 24 },
-          { x: 118, y: 46 },
-          { x: 98, y: 60 },
-          { x: 36, y: 62 },
-        ],
-        true,
-      );
-      g.fillStyle(0x4a4a5e, 0.9);
-      g.fillPoints(
-        [
-          { x: 18, y: 26 },
-          { x: 40, y: 8 },
-          { x: 82, y: 12 },
-          { x: 92, y: 32 },
-          { x: 62, y: 46 },
-          { x: 24, y: 42 },
-        ],
-        true,
-      );
-      g.fillStyle(0x8888aa, 0.28);
-      g.fillPoints(
-        [
-          { x: 30, y: 14 },
-          { x: 52, y: 8 },
-          { x: 66, y: 18 },
-          { x: 52, y: 28 },
-          { x: 34, y: 24 },
-        ],
-        true,
-      );
-      g.lineStyle(1, 0x1a1a22, 0.8);
+      const body = [
+        { x: 8, y: 52 },
+        { x: 2, y: 32 },
+        { x: 20, y: 12 },
+        { x: 52, y: 4 },
+        { x: 90, y: 8 },
+        { x: 114, y: 24 },
+        { x: 118, y: 46 },
+        { x: 98, y: 60 },
+        { x: 36, y: 62 },
+      ];
+      const facet = [
+        { x: 18, y: 26 },
+        { x: 40, y: 8 },
+        { x: 82, y: 12 },
+        { x: 92, y: 32 },
+        { x: 62, y: 46 },
+        { x: 24, y: 42 },
+      ];
+      const sheen = [
+        { x: 30, y: 14 },
+        { x: 52, y: 8 },
+        { x: 66, y: 18 },
+        { x: 52, y: 28 },
+        { x: 34, y: 24 },
+      ];
+      const lowerFacet = [
+        { x: 8, y: 52 },
+        { x: 2, y: 32 },
+        { x: 20, y: 12 },
+        
+        { x: 52, y: 4 },
+        { x: 50, y: 8 },
+        { x: 31, y: 13 },
+        { x: 20, y: 27 },
+        { x: 23, y: 42 },
+        { x: 60, y: 46 },
+        { x: 32, y: 61 },
+        
+      ];
+
+      g.fillStyle(0x1f1f28, 1);
+      g.fillPoints(body, true);
+      g.fillStyle(0x47475c, 0.94);
+      g.fillPoints(facet, true);
+      g.fillStyle(0x8f90b0, 0.34);
+      g.fillPoints(sheen, true);
+      g.fillStyle(0x2f2f3d, 0.9);
+      g.fillPoints(lowerFacet, true);
+
+      g.fillStyle(0xb8bbd8, 0.12);
+      g.fillCircle(44, 15, 4);
+      g.fillCircle(58, 14, 3);
+      g.fillCircle(71, 20, 2);
+      g.fillCircle(79, 30, 3);
+
+      g.lineStyle(1.4, 0x121219, 0.95);
+      g.beginPath();
+      g.moveTo(8, 52);
+      g.lineTo(2, 32);
+      g.lineTo(20, 12);
+      g.lineTo(52, 4);
+      g.lineTo(90, 8);
+      g.lineTo(114, 24);
+      g.lineTo(118, 46);
+      g.lineTo(98, 60);
+      g.lineTo(36, 62);
+      g.lineTo(8, 52);
+      g.strokePath();
+
+      g.lineStyle(1.1, 0x7d7faa, 0.24);
+      g.beginPath();
+      g.moveTo(30, 14);
+      g.lineTo(52, 8);
+      g.lineTo(66, 18);
+      g.lineTo(52, 28);
+      g.strokePath();
       g.beginPath();
       g.moveTo(70, 14);
       g.lineTo(74, 36);
@@ -354,6 +451,18 @@ class BootScene extends Phaser.Scene {
     g.destroy();
   }
 
+  _getLocalPoint(gameObject, worldPoint) {
+    const scaleX = gameObject.scaleX || 1;
+    const scaleY = gameObject.scaleY || 1;
+    const left = gameObject.x - gameObject.displayOriginX * scaleX;
+    const top = gameObject.y - gameObject.displayOriginY * scaleY;
+
+    return {
+      x: (worldPoint.x - left) / scaleX,
+      y: (worldPoint.y - top) / scaleY,
+    };
+  }
+
   // ── Sensori fisici ───────────────────────
   //
   //  Creo un oggetto 1×1 alla posizione world (wx, wy) — centro del cerchio.
@@ -427,6 +536,7 @@ class BootScene extends Phaser.Scene {
     const def = ROCK_TYPES[type] ?? ROCK_TYPES.granite;
     const rock = this.obstacles.create(x, y, def.textureKey);
     rock.setScale(scale);
+    rock.setInteractive({ pixelPerfect: true, alphaTolerance: 1 });
     rock.setImmovable(true);
     rock.body.moves = false;
     rock.body.setSize(1, 1);
@@ -438,6 +548,7 @@ class BootScene extends Phaser.Scene {
     const def = BUSH_TYPES[type] ?? BUSH_TYPES.green;
     const bush = this.obstacles.create(x, y, def.textureKey);
     bush.setScale(scale);
+    bush.setInteractive({ pixelPerfect: true, alphaTolerance: 1 });
     bush.setImmovable(true);
     bush.body.moves = false;
     bush.body.setSize(1, 1);
@@ -530,11 +641,20 @@ class BootScene extends Phaser.Scene {
     });
     this.cursors = this.input.keyboard.createCursorKeys();
     this.input.setDefaultCursor("crosshair");
-    //quando clicco con il cursore da la posizione del cursore in coordinate world, non screen
+    // Quando clicco con il cursore ottengo sia la posizione world sia,
+    // se sto toccando un oggetto, le coordinate locali sulla sua texture.
     this.input.on("pointerdown", (pointer) => {
       const worldPoint = pointer.positionToCamera(this.cameras.main);
       console.log(
         `Cliccato in world: (${worldPoint.x.toFixed(2)}, ${worldPoint.y.toFixed(2)})`,
+      );
+    });
+
+    this.input.on("gameobjectdown", (pointer, gameObject) => {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const localPoint = this._getLocalPoint(gameObject, worldPoint);
+      console.log(
+        `Oggetto toccato: ${gameObject.texture.key} | locale: (${localPoint.x.toFixed(2)}, ${localPoint.y.toFixed(2)})`,
       );
     });
 

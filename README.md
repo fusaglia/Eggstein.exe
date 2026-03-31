@@ -33,7 +33,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **012**|`questo user ha lasciato la stanza`|`<userId>`|
 | **013**|`timer per l'inizio della stanza`|`<second>`|
 | **014**|`inizia la partita`|`vuoto`|
-
+| **015**|`ecco tutte le informazioni del game`|`<game>`|
+| **016**|`manda ai players il playersPayload`|`<playersPayload>`|
 
 ---
 
@@ -46,6 +47,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **104**|`manda al server il rommId della stanza in cui vuole entrare`|`<roomId>`|
 | **105**|`mando alla room nel server il mio ready`|`vuoto`|
 | **106**|`voglio uscire dalla mia stanza`|`vuoto`|
+| **107**|`mi muovo in questa direzione`|`<direction>`|
 
 ---
 

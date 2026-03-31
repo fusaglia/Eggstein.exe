@@ -1,8 +1,8 @@
 import BootScene from "./scenes/BootScene.js";
-import "./WebSocketClient.js";
 import { socketFuncions } from "./WebSocketClient.js";
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
+import { gameState } from "./gameState.js";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,20 +26,27 @@ const stanza = {};
 // Cambio schermate
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//game utils 
+//game utils
 
 const imageCache = new Map();
 const config = {
-    type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
-    backgroundColor: '#000000',
-    scene: [BootScene]
+  type: Phaser.AUTO,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  backgroundColor: "#000000",
+  physics: {
+    default: "arcade",
+    arcade: { gravity: { y: 0 }, debug: false },
+  },
+  fps: {
+    target: 60,
+    forceSetTimeOut: true,
+  },
+  scene: [BootScene],
 };
 
 let game = null;
 // resize
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEBUG
@@ -91,42 +98,45 @@ export const mainObjects = {
     stanza.minPlayer = room.minPlayer;
     stanza.mappa = room.mappa;
     stanza.password = room.password;
-    stanza.players = room.players;
+    stanza.users = room.players;
     visual.reloadRoom(room);
     console.log("stanza aggiornata:", stanza);
   },
   addUserToRoom: function (user) {
     if (!user) return;
     //se lo user è già nella stanza, non aggiungerlo di nuovo
-    if (stanza.players && stanza.players.find((u) => u.userId === user.userId)) {
+    if (
+      stanza.users &&
+      stanza.users.find((u) => u.userId === user.userId)
+    ) {
       console.log("lo user " + user.userId + " è già nella stanza");
       visual.updatePlayersStatus();
       return;
     }
-    if (!stanza.players) {
-      stanza.players = [];
-      stanza.players.push(user);
+    if (!stanza.users) {
+      stanza.users = [];
+      stanza.users.push(user);
     } else {
-      stanza.players.push(user);
+      stanza.users.push(user);
     }
     visual.updatePlayersStatus();
   },
   removeUserFromRoom: function (userId) {
-    if (!stanza.players) return;
-    stanza.players = stanza.players.filter((u) => u.userId !== userId);
+    if (!stanza.users) return;
+    stanza.users = stanza.users.filter((u) => u.userId !== userId);
     visual.updatePlayersStatus();
   },
   setUserIsReady: function (userId, isReady) {
-    if (!stanza.players) return;
+    if (!stanza.users) return;
     if (!userId) return;
-    const user = stanza.players.find((u) => u.userId === userId);
+    const user = stanza.users.find((u) => u.userId === userId);
     if (user) {
       user.isReady = isReady;
       visual.updatePlayersStatus(userId, isReady);
     }
   },
   getPlayers: function () {
-    return stanza.players || [];
+    return stanza.users || [];
   },
   leaveRoom: function () {
     stanza.roomId = null;
@@ -134,23 +144,63 @@ export const mainObjects = {
     stanza.minPlayer = null;
     stanza.mappa = null;
     stanza.password = null;
-    stanza.players = null;
+    stanza.users = null;
+    stanza.game = null;
+    gameState.currentGame = null;
   },
   startGame: function () {
-  game = new Phaser.Game(config);
-  window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-});
-}
+    if (game) game.destroy(true);
+    game = new Phaser.Game(config);
+    window.addEventListener("resize", () =>
+      game.scale.resize(window.innerWidth, window.innerHeight),
+    );
+  },
+  updatePlayers: function (playersPayload) {
+    if (!stanza.game) {
+      stanza.game = {
+        playersMap: new Map(),
+      };
+    }
+    if (!(stanza.game.playersMap instanceof Map)) {
+      stanza.game.playersMap = new Map();
+    } else {
+      stanza.game.playersMap.clear();
+    }
+
+    const playersList = Array.isArray(playersPayload)
+      ? playersPayload
+      : playersPayload && typeof playersPayload === "object"
+        ? Object.values(playersPayload)
+        : [];
+
+    playersList.forEach((playerData) => {
+      if (!playerData || !playerData.userId) return;
+      stanza.game.playersMap.set(playerData.userId, {
+          userId: playerData.userId,
+          userName: playerData.userName,
+          x: playerData.x,
+          y: playerData.y,
+          hp: playerData.hp,
+          attributes: playerData.attributes,
+      });
+    });
+    const gameScene = game?.scene?.getScene("BootScene");
+    if (gameScene && typeof gameScene.syncPlayersFromServer === "function") {
+      gameScene.syncPlayersFromServer(playersPayload);
+    }
+    visual.updatePlayersStatus();
+  },
+  updateGame: function (gameData) {
+    stanza.game = gameData;
+    gameState.currentGame = gameData;
+    this.startGame();
+  },
+
 };
-
-
 
 async function inizialize() {
   await visual.initializeHtml();
 }
-
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // inizializza documento

@@ -137,13 +137,22 @@ export const socketFuncions = {
       //errore nell'inizzializzazione della partita, qualcuno ha tolto il pronto o si è disconnesso
       visual.resetStartCountdown();
     });
-    tSocket.on("014", (roomId) => {
+    tSocket.on("014", () => {
       console.log("messaggio 014 ricevuto");
       visual.showScreen(visual.screens.gameScreen);
       visual.hideElement(visual.elements.gameTitle);
       visual.hideElement(visual.elements.debugHeader);
       console.log("La partita nella stanza è iniziata");
-      mainObjects.startGame();
+    });
+    tSocket.on("015", (game) => {
+      console.log("messaggio 015 ricevuto");
+      console.log("Game: " + JSON.stringify(game));
+      mainObjects.updateGame(game);
+    });
+    tSocket.on("016", (playersPayload) => {
+      console.log("messaggio 016 ricevuto");
+      //console.log("PlayersPayload:", playersPayload);
+      mainObjects.updatePlayers(playersPayload);
     });
     this.socket = tSocket;
     return tSocket;
@@ -233,5 +242,9 @@ export const socketFuncions = {
       }
     });
     visual.elements.leaveRoomBtn.disabled = false;
+  },
+  emitPlayerInput: function (key, isDown) {
+    this.socket.emit("107", key, isDown);
+    //console.log("messaggio 107 mandato");
   },
 };
