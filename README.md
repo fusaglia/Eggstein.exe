@@ -50,8 +50,9 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **104**|`manda al server il rommId della stanza in cui vuole entrare`|`<roomId>`|
 | **105**|`mando alla room nel server il mio ready`|`vuoto`|
 | **106**|`voglio uscire dalla mia stanza`|`vuoto`|
-| **107**|`voglio usare questa abilità`|`<abilityIndex>`|
+| **107**|`player payload`|`<payload>`|
 | **108**|`looking at`|`<direction>`|
+| **109**|`ability index`|`<index>`|
 
 ---
 
