@@ -35,6 +35,9 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **014**|`inizia la partita`|`vuoto`|
 | **015**|`ecco tutte le informazioni del game`|`<game>`|
 | **016**|`manda ai players il playersPayload`|`<playersPayload>`|
+| **017**|`hai usato abilità`|`<abilityID>`|
+| **018**|`broadcast: abilità usata in questo punto e in questa direzione`|`<abilityID>, <x>, <y>, <direction>`|
+| **019**|`ecco le tue abilità`|`[abilitesIndexs]`|
 
 ---
 
@@ -47,7 +50,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **104**|`manda al server il rommId della stanza in cui vuole entrare`|`<roomId>`|
 | **105**|`mando alla room nel server il mio ready`|`vuoto`|
 | **106**|`voglio uscire dalla mia stanza`|`vuoto`|
-| **107**|`mi muovo in questa direzione`|`<direction>`|
+| **107**|`voglio usare questa abilità`|`<abilityIndex>`|
+| **108**|`looking at`|`<direction>`|
 
 ---
 

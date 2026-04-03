@@ -46,6 +46,7 @@ const config = {
 };
 
 let game = null;
+let pendingAbilitiesIndex = null;
 // resize
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +89,13 @@ function generateUser() {
 //funzioni main
 
 export const mainObjects = {
+  flushPendingAbilities: function () {
+    if (!Array.isArray(pendingAbilitiesIndex)) return;
+    const gameScene = game?.scene?.getScene("BootScene");
+    if (!gameScene || typeof gameScene.updateAbilities !== "function") return;
+    gameScene.updateAbilities(pendingAbilitiesIndex);
+    pendingAbilitiesIndex = null;
+  },
   reloadUserNameAndId: function () {
     userId = localStorage.getItem("userId");
     userName = localStorage.getItem("userName");
@@ -147,6 +155,7 @@ export const mainObjects = {
     stanza.users = null;
     stanza.game = null;
     gameState.currentGame = null;
+    pendingAbilitiesIndex = null;
   },
   startGame: function () {
     if (game) game.destroy(true);
@@ -181,12 +190,14 @@ export const mainObjects = {
           x: playerData.x,
           y: playerData.y,
           hp: playerData.hp,
+          direction: playerData.direction,
           attributes: playerData.attributes,
       });
     });
     const gameScene = game?.scene?.getScene("BootScene");
     if (gameScene && typeof gameScene.syncPlayersFromServer === "function") {
       gameScene.syncPlayersFromServer(playersPayload);
+      this.flushPendingAbilities();
     }
     visual.updatePlayersStatus();
   },
@@ -194,6 +205,20 @@ export const mainObjects = {
     stanza.game = gameData;
     gameState.currentGame = gameData;
     this.startGame();
+  },
+  updateAbilities: function (abilitiesIndex) {
+    if (!Array.isArray(abilitiesIndex)) return;
+    const gameScene = game?.scene?.getScene("BootScene");
+    if (gameScene && typeof gameScene.updateAbilities === "function") {
+      gameScene.updateAbilities(abilitiesIndex);
+      return;
+    }
+    pendingAbilitiesIndex = [...abilitiesIndex];
+  },
+  playAbilityFx: function (effectPayload) {
+    const gameScene = game?.scene?.getScene("BootScene");
+    if (!gameScene || typeof gameScene.playAbilityFx !== "function") return;
+    gameScene.playAbilityFx(effectPayload);
   },
 
 };

@@ -1,222 +1,9 @@
-const WORLD_WIDTH = 7680;
-const WORLD_HEIGHT = 4320;
-const PLAYER_SPEED = 320;
-const MOVE_SMOOTHNESS = 18;
-const PLAYER_RADIUS = 18;
-
-const OBSTACLE_DEFINITIONS = {
-  granite: {
-    textureW: 100,
-    textureH: 80,
-    sensorCircles: [
-      { cx: 38, cy: 36, r: 28 },
-      { cx: 41, cy: 52, r: 23 },
-      { cx: 62, cy: 40, r: 30 },
-    ],
-    sensorRects: [],
-  },
-  sandstone: {
-    textureW: 90,
-    textureH: 96,
-    sensorCircles: [
-      { cx: 46, cy: 38, r: 32 },
-      { cx: 47, cy: 52, r: 39 },
-    ],
-    sensorRects: [],
-  },
-  obsidian: {
-    textureW: 120,
-    textureH: 66,
-    sensorCircles: [
-      { cx: 30, cy: 35, r: 24 },
-      { cx: 92, cy: 36, r: 23 },
-    ],
-    sensorRects: [{ cx: 60, cy: 34, w: 55, h: 55 }],
-  },
-  green: {
-    textureW: 112,
-    textureH: 100,
-    sensorCircles: [
-      { cx: 32, cy: 44, r: 24 },
-      { cx: 60, cy: 38, r: 28 },
-      { cx: 82, cy: 54, r: 24 },
-      { cx: 56, cy: 64, r: 30 },
-    ],
-    sensorRects: [],
-  },
-  autumn: {
-    textureW: 112,
-    textureH: 100,
-    sensorCircles: [
-      { cx: 32, cy: 44, r: 24 },
-      { cx: 60, cy: 38, r: 28 },
-      { cx: 82, cy: 54, r: 24 },
-      { cx: 56, cy: 64, r: 30 },
-    ],
-    sensorRects: [],
-  },
-  thorn: {
-    textureW: 112,
-    textureH: 100,
-    sensorCircles: [
-      { cx: 32, cy: 44, r: 24 },
-      { cx: 60, cy: 38, r: 28 },
-      { cx: 82, cy: 54, r: 24 },
-      { cx: 56, cy: 64, r: 30 },
-    ],
-    sensorRects: [],
-  },
-};
-
-function createSeededRandom(seedValue) {
-  let seed = 0;
-  const seedText = String(seedValue ?? "0");
-  for (let i = 0; i < seedText.length; i++) {
-    seed = (seed * 31 + seedText.charCodeAt(i)) >>> 0;
-  }
-  if (seed === 0) seed = 0x6d2b79f5;
-
-  return () => {
-    seed ^= seed << 13;
-    seed ^= seed >>> 17;
-    seed ^= seed << 5;
-    return ((seed >>> 0) / 4294967296);
-  };
-}
-
-function randomBetween(rng, min, max) {
-  return min + (max - min) * rng();
-}
-
-function getObstacleDefinition(obstacleType) {
-  return OBSTACLE_DEFINITIONS[obstacleType] || OBSTACLE_DEFINITIONS.granite;
-}
-
-function buildObstacleSensors(obstacle) {
-  const definition = getObstacleDefinition(obstacle.type);
-  const width = definition.textureW;
-  const height = definition.textureH;
-  const scale = obstacle.scale || 1;
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-
-  const circles = (definition.sensorCircles || []).map((circle) => ({
-    x: obstacle.x + (circle.cx - halfWidth) * scale,
-    y: obstacle.y + (circle.cy - halfHeight) * scale,
-    r: circle.r * scale,
-  }));
-
-  const rects = (definition.sensorRects || []).map((rect) => {
-    const centerX = typeof rect.cx === "number" ? rect.cx : rect.x + rect.w * 0.5;
-    const centerY = typeof rect.cy === "number" ? rect.cy : rect.y + rect.h * 0.5;
-
-    return {
-      x: obstacle.x + (centerX - halfWidth) * scale,
-      y: obstacle.y + (centerY - halfHeight) * scale,
-      w: rect.w * scale,
-      h: rect.h * scale,
-    };
-  });
-
-  return { circles, rects };
-}
-
-function circleIntersectsCircle(circleA, circleB) {
-  const dx = circleA.x - circleB.x;
-  const dy = circleA.y - circleB.y;
-  const radiusSum = circleA.r + circleB.r;
-  return dx * dx + dy * dy <= radiusSum * radiusSum;
-}
-
-function circleIntersectsRect(circle, rect) {
-  const halfWidth = rect.w * 0.5;
-  const halfHeight = rect.h * 0.5;
-  const closestX = Math.max(rect.x - halfWidth, Math.min(circle.x, rect.x + halfWidth));
-  const closestY = Math.max(rect.y - halfHeight, Math.min(circle.y, rect.y + halfHeight));
-  const dx = circle.x - closestX;
-  const dy = circle.y - closestY;
-  return dx * dx + dy * dy <= circle.r * circle.r;
-}
-
-function playerIntersectsObstacles(x, y, radius, obstacles) {
-  if (!Array.isArray(obstacles)) return false;
-
-  const playerCircle = { x, y, r: radius };
-
-  for (const obstacle of obstacles) {
-    if (!obstacle) continue;
-    const sensors = buildObstacleSensors(obstacle);
-
-    for (const circle of sensors.circles) {
-      if (circleIntersectsCircle(playerCircle, circle)) {
-        return true;
-      }
-    }
-
-    for (const rect of sensors.rects) {
-      if (circleIntersectsRect(playerCircle, rect)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-function movePlayerWithCollisions(player, deltaX, deltaY, obstacles, worldWidth, worldHeight) {
-  const nextX = player.x + deltaX;
-  if (!playerIntersectsObstacles(nextX, player.y, PLAYER_RADIUS, obstacles)) {
-    player.x = Math.max(0, Math.min(worldWidth, nextX));
-  }
-
-  const nextY = player.y + deltaY;
-  if (!playerIntersectsObstacles(player.x, nextY, PLAYER_RADIUS, obstacles)) {
-    player.y = Math.max(0, Math.min(worldHeight, nextY));
-  }
-}
-
-function findSpawnPosition(rng, obstacles, worldWidth, worldHeight) {
-  for (let i = 0; i < 40; i++) {
-    const x = randomBetween(rng, 200, worldWidth - 200);
-    const y = randomBetween(rng, 200, worldHeight - 200);
-    if (!playerIntersectsObstacles(x, y, PLAYER_RADIUS, obstacles)) {
-      return { x, y };
-    }
-  }
-
-  return {
-    x: worldWidth * 0.5,
-    y: worldHeight * 0.5,
-  };
-}
-
-function buildWorldObstacles(seed) {
-  const rng = createSeededRandom(seed);
-  const specs = [
-    { obstacle: "rock", type: "granite", count: 14, minScale: 0.8, maxScale: 1.35 },
-    { obstacle: "rock", type: "sandstone", count: 12, minScale: 0.7, maxScale: 1.2 },
-    { obstacle: "rock", type: "obsidian", count: 10, minScale: 0.9, maxScale: 1.4 },
-    { obstacle: "bush", type: "green", count: 16, minScale: 0.75, maxScale: 1.25 },
-    { obstacle: "bush", type: "autumn", count: 12, minScale: 0.7, maxScale: 1.15 },
-    { obstacle: "bush", type: "thorn", count: 10, minScale: 0.8, maxScale: 1.2 },
-  ];
-
-  const obstacles = [];
-
-  specs.forEach((spec) => {
-    for (let i = 0; i < spec.count; i++) {
-      obstacles.push({
-        obstacle: spec.obstacle,
-        type: spec.type,
-        x: Math.floor(randomBetween(rng, 220, WORLD_WIDTH - 220)),
-        y: Math.floor(randomBetween(rng, 220, WORLD_HEIGHT - 220)),
-        scale: Number(randomBetween(rng, spec.minScale, spec.maxScale).toFixed(2)),
-      });
-    }
-  });
-
-  return obstacles;
-}
+import {
+  toClientGame,
+  startGame,
+  playerWantToUseAbility,
+} from "./gameFunctions.js";
+const validAbilityKeys = new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "E"]);
 
 //import {users} from "./server.js";
 export const utility = {
@@ -243,23 +30,7 @@ export const utility = {
     };
   },
   toClientGame: function (game) {
-    if (!game) return null;
-    return {
-      worldWidth: game.worldWidth,
-      worldHeight: game.worldHeight,
-      playerSpeed: game.playerSpeed,
-      seed: game.seed,
-      obstacles: Array.isArray(game.obstacles) ? game.obstacles : [],
-      players: Array.from(game.players.values()).map((player) => ({
-        userId: player.userId,
-        userName: player.userName,
-        x: player.x,
-        y: player.y,
-        hp: player.hp,
-        attributes: player.attributes,
-      })),
-      moveSmoothness: game.moveSmoothness,
-    };
+    return toClientGame(game);
   },
   checkUserRoom: function (userId, rooms) {
     let userRoom = null;
@@ -372,6 +143,8 @@ export const utility = {
       console.log("creazione stanza " + roomId);
       const tempRoom = {
         roomId: roomId,
+        admin: socket.userId,
+        maxLives: attributes.maxLives || 3,
         players: new Map(),
         maxPlayer: attributes.maxPlayer || maxPlayer,
         minPlayer: minPlayer,
@@ -554,7 +327,7 @@ export const utility = {
       }
       this.userLeaveRoom(socket, user, roomId, rooms, users, callback);
     });
-    socket.on("107", (key, isDown) => {
+    socket.on("107", (payload) => {
       console.log("messaggo 107 ricevuto");
       if (!users.has(socket.userId)) {
         console.log(
@@ -579,25 +352,10 @@ export const utility = {
         return;
       }
       if (!rooms.get(roomId).isPlaying) {
-        console.log(
-          "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " ha inviato un input ma la partita non è iniziata",
-        );
+        console.log("input movimento ignorato: la partita non è iniziata");
         return;
       }
-      console.log(
-        "lo user " +
-          user.userId +
-          " | " +
-          user.userName +
-          " ha inviato l'input " +
-          key +
-          " con isDown = " +
-          isDown,
-      );
+
       const room = rooms.get(roomId);
       if (!room.game) {
         console.log(
@@ -607,21 +365,80 @@ export const utility = {
         );
         return;
       }
+
       const gamePlayer = room.game.players.get(user.userId);
-      if (!gamePlayer || !gamePlayer.keyDowns) {
+      if (!gamePlayer) {
         console.log(
           "il player " +
             user.userId +
             " non è presente nel game della stanza " +
             roomId +
-            ", input ignorato",
+            ", aggiornamento ignorato",
         );
         return;
       }
-      if (isDown) {
-        gamePlayer.keyDowns.set(key, true);
-      } else {
-        gamePlayer.keyDowns.delete(key);
+
+      if (!payload || typeof payload !== "object") {
+        return;
+      }
+
+      const { x, y, direction } = payload;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return;
+      }
+
+      const clampedX = Math.max(0, Math.min(room.game.worldWidth, x));
+      const clampedY = Math.max(0, Math.min(room.game.worldHeight, y));
+      gamePlayer.x = clampedX;
+      gamePlayer.y = clampedY;
+
+      if (typeof direction === "number" && Number.isFinite(direction)) {
+        gamePlayer.direction = direction;
+      }
+    });
+
+    socket.on("109", (key) => {
+      
+      if (!users.has(socket.userId)) {
+        return;
+      }
+      const user = users.get(socket.userId);
+      console.log("messaggo 109 ricevuto da user " + user.userId + " | " + user.userName + " con key: " + key);
+      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      if (!roomId) {
+        return;
+      }
+      const room = rooms.get(roomId);
+      if (!room || !room.isPlaying || !room.game) {
+        return;
+      }
+      const gamePlayer = room.game.players.get(user.userId);
+      if (!gamePlayer || !gamePlayer.keyDowns) {
+        return;
+      }
+      playerWantToUseAbility(user.userId, key, rooms, this.io);
+      //
+    });
+    socket.on("108", (direction) => {
+      console.log("messaggo 108 ricevuto");
+      if (!users.has(socket.userId)) {
+        return;
+      }
+      const user = users.get(socket.userId);
+      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      if (!roomId) {
+        return;
+      }
+      const room = rooms.get(roomId);
+      if (!room || !room.isPlaying || !room.game) {
+        return;
+      }
+      const gamePlayer = room.game.players.get(user.userId);
+      if (!gamePlayer) {
+        return;
+      }
+      if (typeof direction === "number" && Number.isFinite(direction)) {
+        gamePlayer.direction = direction;
       }
     });
   },
@@ -789,113 +606,6 @@ export const utility = {
     this.startGame(roomId, rooms);
   },
   startGame: function (roomId, rooms) {
-    rooms.get(roomId).isPlaying = true;
-    const room = rooms.get(roomId);
-    const seed = `${roomId}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-    const obstacles = buildWorldObstacles(seed);
-    const spawnRng = createSeededRandom(`${seed}-spawn`);
-    room.game = {
-      worldWidth: WORLD_WIDTH,
-      worldHeight: WORLD_HEIGHT,
-      playerSpeed: PLAYER_SPEED,
-      seed,
-      obstacles,
-      players: new Map(),
-      moveSmoothness: MOVE_SMOOTHNESS,
-    };
-    room.players.forEach((value, key) => {
-      if (!value || !value.userId) {
-        return;
-      }
-      const spawn = findSpawnPosition(spawnRng, obstacles, WORLD_WIDTH, WORLD_HEIGHT);
-      room.game.players.set(key, {
-        userId: value.userId,
-        userName: value.userName,
-        x: spawn.x,
-        y: spawn.y,
-        hp: 100,
-        keyDowns: new Map(),
-        attributes: {
-          isHit: false,
-          hitCooldown: 0,
-          holding: null,
-          invulnerable: false,
-          dazed: false,
-          speedPercentage: 1,
-        },
-        abilities: [],
-      });
-    });
-    this.io.to(roomId).emit("014", roomId);
-    this.io.to(roomId).emit("015", this.toClientGame(room.game));
-    room.gameInterval = setInterval(() => {
-      const currentRoom = rooms.get(roomId);
-      if (!currentRoom || !currentRoom.isPlaying || !currentRoom.game) {
-        clearInterval(room.gameInterval);
-        room.gameInterval = null;
-        return;
-      }
-
-      if (
-        currentRoom.players.size === 0 ||
-        currentRoom.game.players.size === 0
-      ) {
-        clearInterval(room.gameInterval);
-        room.gameInterval = null;
-        currentRoom.isPlaying = false;
-        currentRoom.game = null;
-        return;
-      }
-
-      const deltaSeconds = 1 / 60;
-      const playersPayload = [];
-
-      currentRoom.game.players.forEach((player) => {
-        if (!player) {
-          return;
-        }
-
-        const speedMultiplier = player.attributes?.speedPercentage ?? 1;
-        const moveStep = currentRoom.game.playerSpeed * deltaSeconds * speedMultiplier;
-        let dirX = 0;
-        let dirY = 0;
-
-        if (player.keyDowns.has("D")) dirX += 1;
-        if (player.keyDowns.has("A")) dirX -= 1;
-        if (player.keyDowns.has("S")) dirY += 1;
-        if (player.keyDowns.has("W")) dirY -= 1;
-
-        if (dirX !== 0 || dirY !== 0) {
-          const length = Math.hypot(dirX, dirY);
-          const moveX = (dirX / length) * moveStep;
-          const moveY = (dirY / length) * moveStep;
-          movePlayerWithCollisions(
-            player,
-            moveX,
-            moveY,
-            currentRoom.game.obstacles,
-            currentRoom.game.worldWidth,
-            currentRoom.game.worldHeight,
-          );
-        }
-
-        player.x = Math.max(0, Math.min(currentRoom.game.worldWidth, player.x));
-        player.y = Math.max(
-          0,
-          Math.min(currentRoom.game.worldHeight, player.y),
-        );
-
-        playersPayload.push({
-          userId: player.userId,
-          userName: player.userName,
-          x: player.x,
-          y: player.y,
-          hp: player.hp,
-          attributes: player.attributes,
-        });
-      });
-
-      this.io.volatile.to(roomId).emit("016", playersPayload);
-    }, 1000 / 60);
+    startGame(this.io, roomId, rooms);
   },
 };
