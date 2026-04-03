@@ -313,7 +313,7 @@ export const utility = {
         return;
       }
       const user = users.get(socket.userId);
-      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      const roomId = user.currentRoom || this.checkUserRoom(user.userId, rooms)?.roomId;
       if (!roomId) {
         console.log(
           "lo user " +
@@ -328,31 +328,15 @@ export const utility = {
       this.userLeaveRoom(socket, user, roomId, rooms, users, callback);
     });
     socket.on("107", (payload) => {
-      console.log("messaggo 107 ricevuto");
       if (!users.has(socket.userId)) {
-        console.log(
-          "lo user con socketId " +
-            socket.id +
-            " e userID " +
-            socket.userId +
-            " non è negli users",
-        );
         return;
       }
       const user = users.get(socket.userId);
-      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      const roomId = user.currentRoom || this.checkUserRoom(user.userId, rooms)?.roomId;
       if (!roomId) {
-        console.log(
-          "lo user " +
-            user.userId +
-            " | " +
-            user.userName +
-            " non è in una stanza",
-        );
         return;
       }
       if (!rooms.get(roomId).isPlaying) {
-        console.log("input movimento ignorato: la partita non è iniziata");
         return;
       }
 
@@ -404,7 +388,7 @@ export const utility = {
       }
       const user = users.get(socket.userId);
       console.log("messaggo 109 ricevuto da user " + user.userId + " | " + user.userName + " con key: " + key);
-      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      const roomId = user.currentRoom || this.checkUserRoom(user.userId, rooms)?.roomId;
       if (!roomId) {
         return;
       }
@@ -425,7 +409,7 @@ export const utility = {
         return;
       }
       const user = users.get(socket.userId);
-      const roomId = user.currentRoom || this.checkUserRoom(socket, rooms);
+      const roomId = user.currentRoom || this.checkUserRoom(user.userId, rooms)?.roomId;
       if (!roomId) {
         return;
       }

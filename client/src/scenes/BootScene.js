@@ -1,10 +1,6 @@
 // ─────────────────────────────────────────────
 //  REGOLA HITBOX SENSORI — SPIEGAZIONE BREVE
 //
-//  Ogni sensore è un oggetto 1×1 creato con group.create(wx, wy).
-//  L'origine dello sprite è (0.5, 0.5), quindi il body parte da
-//  (wx - 0.5, wy - 0.5) ≈ (wx, wy).
-//
 //  setCircle(r, offsetX, offsetY): il cerchio ha l'angolo in alto
 //  a sinistra in (body.x + offsetX, body.y + offsetY), quindi il
 //  suo centro è a (body.x + offsetX + r, body.y + offsetY + r).
@@ -25,8 +21,45 @@
 import { socketFuncions } from "../WebSocketClient.js";
 import { gameState } from "../gameState.js";
 
+/**
+ * Lista delle chiavi (stringhe) utilizzate per attivare le abilità.
+ * Queste sono le rappresentazioni logiche delle abilità usate
+ * quando si mappa input -> abilità (hotbar). Normalizziamo
+ * i tasti in uppercase per confronto semplice.
+ */
 const abilityKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q"];
 
+/**
+ * Mappa opzionale da `KeyboardEvent.code` (tasto fisico) alla
+ * chiave di abilità logica. Questo aiuta a rendere l'input robusto
+ * rispetto ai layout di tastiera (es. Q/W diversi in layout AZERTY).
+ */
+const abilityKeyByCode = {
+  Digit1: "1",
+  Digit2: "2",
+  Digit3: "3",
+  Digit4: "4",
+  Digit5: "5",
+  Digit6: "6",
+  Digit7: "7",
+  Digit8: "8",
+  Digit9: "9",
+  Digit0: "0",
+  KeyQ: "Q",
+};
+
+/**
+ * Definizioni delle tipologie di rocce usate nel gioco.
+ * Ogni voce contiene i dati necessari a generare la texture
+ * (funzione `draw`) e metadati usati per sensori/physics.
+ * Struttura tipica:
+ * {
+ *   textureKey, textureW, textureH,
+ *   draw(g) - funzione che disegna la texture su Graphics,
+ *   sensorCircles: [{cx, cy, r}, ...],
+ *   sensorRects: [{x/cx, y/cy, w, h}, ...] (opzionale)
+ * }
+ */
 const ROCK_TYPES = {
   granite: {
     textureKey: "rock_granite",
@@ -300,6 +333,10 @@ const ROCK_TYPES = {
 
 // ─────────────────────────────────────────────
 
+/**
+ * Definizioni di tipi di cespugli (bush) simili a ROCK_TYPES.
+ * Contengono proprietà per generare texture e sensori.
+ */
 const BUSH_TYPES = {
   green: {
     textureKey: "bush_green",
@@ -389,34 +426,113 @@ const BUSH_TYPES = {
 };
 
 // ─────────────────────────────────────────────
+/**
+ * Abilità "di default" sempre disponibili sul client.
+ * Usate per funzionalità local-only (es. dash client-side).
+ * Ogni oggetto abilità può avere:
+ * - name, key, cooldown, duration
+ * - effect(payload, scene, ctx): funzione eseguita al cast
+ */
 const DEFAULT_ABILITYES = [
   {
     name: "Dash",
     key: "Q",
     cooldown: 3,
-    duration: 0.3,
+    duration: 1.5,
+    soundEffects: ["sonido1"],
     effect: (_payload, scene) => {
+      console.log("Dash ability activated");
+      
       if (!scene?.player) return;
-      scene.player.speedPercentage = 2.5;
-      setTimeout(() => {
-        if (scene?.player) scene.player.speedPercentage = 1;
-      }, 300);
+      //play dash sound effect 
+      
+      const dashDurationMs = 300;
+      const dashMultiplier = 2.5;
+      const baseSpeed = Number.isFinite(scene.basePlayerSpeed)
+        ? scene.basePlayerSpeed
+        : Number.isFinite(scene.playerSpeed)
+          ? scene.playerSpeed
+          : 320;
+
+      scene.playerSpeed = baseSpeed * dashMultiplier;
+      if (scene.player?.body?.setMaxVelocity) {
+        scene.player.body.setMaxVelocity(scene.playerSpeed, scene.playerSpeed);
+      }
+
+      if (scene.dashResetEvent) {
+        scene.dashResetEvent.remove(false);
+      }
+      scene.dashResetEvent = scene.time.delayedCall(dashDurationMs, () => {
+        if (!scene?.player) return;
+        scene.playerSpeed = baseSpeed;
+        if (scene.player?.body?.setMaxVelocity) {
+          scene.player.body.setMaxVelocity(scene.playerSpeed, scene.playerSpeed);
+        }
+        scene.dashResetEvent = null;
+      });
     },
   },
 ];
 
+/**
+ * Definizioni client-side delle abilità di gioco (presentazione).
+ * Questi oggetti possono includere campi usati solo lato client
+ * (es. imagesOnScreen, soundEffects) e la funzione `effect`
+ * che viene chiamata per disegnare VFX/SFX locali.
+ */
 const ABILITIES = [
   {
     name: "Granitè blast",
     type: "ray",
-    radius: 100,
+    radius: 50,
     damage: 100,
-    range: 2000,
+    range: 4000,
     cooldown: 10,
     colors: ["#D5F2F8", "#61EBF5", "#4AFAFA"],
-    effect: (player, room) => {
-      
-    }
+    soundEffects: [],
+    imagesOnScreen: ["granitBlastImage1"],
+    volume: 0.3,
+    voiceEffects: [
+      "granitBlast_voice1",
+      "granitBlast_voice2",
+      "granitBlast_voice3",
+    ],
+    attackerSoundEffects: [],
+    effect: (payload, scene, ctx) => {
+      if (ctx && typeof ctx.drawRay === "function") {
+        ctx.drawRay(payload);
+        return true;
+      }
+      if (scene && typeof scene.drawRay === "function") {
+        scene.drawRay(payload);
+        return true;
+      }
+      return false;
+    },
+  },
+  {
+    name: "Cero",
+    type: "ray",
+    radius: 80,
+    damage: 100,
+    range: 2000,
+    cooldown: 8,
+    colors: ["#f12e2e", "#df6b6b", "#330202"],
+    soundEffects: ["cero1"],
+    volume: 1,
+    voiceEffects: [],
+    attackerSoundEffects: [],
+    effect: (payload, scene, ctx) => {
+      if (ctx && typeof ctx.drawRay === "function") {
+        ctx.drawRay(payload);
+        return true;
+      }
+      if (scene && typeof scene.drawRay === "function") {
+        scene.drawRay(payload);
+        return true;
+      }
+      return false;
+    },
   },
 ];
 
@@ -424,12 +540,27 @@ const ABILITIES = [
 //  SCENE
 // ─────────────────────────────────────────────
 
+/**
+ * `BootScene` - scena principale del client.
+ * Responsabilità principali:
+ * - inizializzare il mondo di gioco e le texture
+ * - gestire input dell'utente e hotbar abilità
+ * - sincronizzare e renderizzare giocatori remoti
+ * - gestire effetti visivi/sonori delle abilità (sia Phaser che overlay HTML)
+ * - mantenere cache locali di audio/immagini per riproduzione veloce
+ */
 export default class BootScene extends Phaser.Scene {
+  /**
+   * Costruttore: imposta valori di default e strutture di stato.
+   * Non accede ancora a Phaser (la scena non è creata).
+   */
   constructor() {
     super("BootScene");
     this.worldWidth = 7680;
     this.worldHeight = 4320;
     this.playerSpeed = 320;
+    this.basePlayerSpeed = 320;
+    this.dashResetEvent = null;
     this.remotePlayers = new Map();
     this.localUserId = localStorage.getItem("userId");
     this.lastSentDirection = null;
@@ -443,15 +574,93 @@ export default class BootScene extends Phaser.Scene {
       points: 0,
     };
     this.localPlayerAbilities = new Map();
+    this.localAbilityCooldownEnds = new Map();
+    this.hotbarSlotByAbilityKey = new Map();
     this.pendingAudioLoads = new Set();
+    this.pendingImageLoads = new Set();
+    this.audioFileCache = new Map();
+    this.imageFileCache = new Map();
+    this.htmlAbilityImageOverlay = null;
     this.hud = null;
   }
+  /**
+   * Controlla se l'abilità identificata da `abilityKey` è in cooldown
+   * lato client (cooldown locale visuale/di prevenzione spam).
+   * Restituisce true se il cooldown non è scaduto.
+   */
+  _isAbilityOnCooldown(abilityKey) {
+    const normalizedKey = String(abilityKey || "").toUpperCase();
+    if (!normalizedKey) return false;
+    const cooldownEndsAt =
+      this.localAbilityCooldownEnds.get(normalizedKey) || 0;
+    return cooldownEndsAt > this.time.now;
+  }
 
+  /**
+   * Avvia un cooldown locale per `abilityKey` usando i secondi
+   * definiti dall'oggetto abilità (client or default).
+   * Il valore viene salvato in `this.localAbilityCooldownEnds`.
+   */
+  _startLocalAbilityCooldown(abilityKey) {
+    const normalizedKey = String(abilityKey || "").toUpperCase();
+    if (!normalizedKey) return;
+
+    const ability =
+      this.localPlayerAbilities.get(normalizedKey) ||
+      DEFAULT_ABILITYES.find(
+        (defaultAbility) =>
+          String(defaultAbility?.key || "").toUpperCase() === normalizedKey,
+      ) ||
+      this._getClientAbilityByKey(normalizedKey);
+    const cooldownSeconds = Number(ability?.cooldown);
+    if (!Number.isFinite(cooldownSeconds) || cooldownSeconds <= 0) return;
+
+    this.localAbilityCooldownEnds.set(
+      normalizedKey,
+      this.time.now + cooldownSeconds * 1000,
+    );
+  }
+
+  /**
+   * Aggiorna la visualizzazione dei cooldown nell'hud (overlay e testo)
+   * leggendo `this.localAbilityCooldownEnds` e mostrando/nascondendo
+   * elementi nella HUD slots corrispondenti.
+   */
+  _updateHotbarCooldowns() {
+    if (!this.hud || !(this.hotbarSlotByAbilityKey instanceof Map)) return;
+
+    this.hotbarSlotByAbilityKey.forEach((slotIndex, abilityKey) => {
+      const slot = this.hud?.slots?.[slotIndex];
+      if (!slot || !slot.cooldownOverlay || !slot.cooldownText) return;
+
+      const cooldownEndsAt = this.localAbilityCooldownEnds.get(abilityKey) || 0;
+      const remainingMs = Math.max(0, cooldownEndsAt - this.time.now);
+
+      if (remainingMs <= 0) {
+        slot.cooldownOverlay.setVisible(false);
+        slot.cooldownText.setVisible(false);
+        this.localAbilityCooldownEnds.delete(abilityKey);
+        return;
+      }
+
+      const remainingSeconds = Math.max(0, remainingMs / 1000);
+      slot.cooldownOverlay.setVisible(true);
+      slot.cooldownText.setText(`${remainingSeconds.toFixed(1)}s`);
+      slot.cooldownText.setVisible(true);
+    });
+  }
+
+  /**
+   * Calcola la lista di abilità da mostrare nell'hotbar basandosi
+   * sullo stato `currentGame`. Esclude le DEFAULT_ABILITYES dalla
+   * lista visibile (vengono trattate separatamente).
+   * Restituisce un array di oggetti minimali con almeno `name`.
+   */
   getHotbarAbilities(currentGame) {
     const defaultAbilityKeys = new Set(
-      DEFAULT_ABILITYES
-        .map((ability) => String(ability?.key || "").toUpperCase())
-        .filter(Boolean),
+      DEFAULT_ABILITYES.map((ability) =>
+        String(ability?.key || "").toUpperCase(),
+      ).filter(Boolean),
     );
 
     const requestedCount =
@@ -491,6 +700,33 @@ export default class BootScene extends Phaser.Scene {
     return abilities;
   }
 
+  /**
+   * Restituisce la definizione client-side di un'abilità dato il suo
+   * tasto/chiave (es. "1".."9", "Q"). Cerca prima nelle default
+   * poi nelle `ABILITIES` predefinite.
+   */
+  _getClientAbilityByKey(abilityKey) {
+    const normalizedKey = String(abilityKey || "").toUpperCase();
+    if (!normalizedKey) return null;
+
+    const defaultAbility = DEFAULT_ABILITYES.find(
+      (ability) => String(ability?.key || "").toUpperCase() === normalizedKey,
+    );
+    if (defaultAbility) return defaultAbility;
+
+    const numericIndex = Number.parseInt(normalizedKey, 10);
+    if (Number.isInteger(numericIndex) && numericIndex >= 1 && numericIndex <= ABILITIES.length) {
+      return ABILITIES[numericIndex - 1];
+    }
+
+    return null;
+  }
+
+  /**
+   * Costruisce una mappa da key -> ability basandosi sulle abilità
+   * fornite dal server (currentGame) e sulle abilità client (DEFAULT/ABILITIES).
+   * Questa mappa è usata per risolvere un'abilità quando arriva dal server.
+   */
   _buildKeyedAbilityMap(currentGame) {
     const keyedAbilities = new Map();
 
@@ -533,14 +769,20 @@ export default class BootScene extends Phaser.Scene {
     return keyedAbilities;
   }
 
+  /**
+   * Aggiorna la mappa `localPlayerAbilities` per il giocatore locale
+   * in base agli indici/chiavi ricevuti (abilitiesIndex).
+   * - merge tra abilità server-side e client-side
+   * - aggiorna la HUD (nomi, icone) e gli hotbar slot mapping
+   */
   updateAbilities(abilitiesIndex) {
     const currentGame = gameState.currentGame;
     if (!currentGame || !Array.isArray(abilitiesIndex)) return;
 
     const defaultAbilityKeys = new Set(
-      DEFAULT_ABILITYES
-        .map((ability) => String(ability?.key || "").toUpperCase())
-        .filter(Boolean),
+      DEFAULT_ABILITYES.map((ability) =>
+        String(ability?.key || "").toUpperCase(),
+      ).filter(Boolean),
     );
 
     if (!(this.localPlayerAbilities instanceof Map)) {
@@ -558,27 +800,36 @@ export default class BootScene extends Phaser.Scene {
     currentGame.localPlayer.abilities = {};
 
     const keyedAbilities = this._buildKeyedAbilityMap(currentGame);
+    this.hotbarSlotByAbilityKey.clear();
 
     let visibleSlotIndex = 0;
     abilitiesIndex.forEach((abilityKey) => {
       const normalizedKey = String(abilityKey).toUpperCase();
       const abilityData = keyedAbilities.get(normalizedKey);
-      if (abilityData) {
-        this.localPlayerAbilities.set(normalizedKey, abilityData);
-        currentGame.localPlayer.abilities[normalizedKey] = abilityData;
+      const clientAbility = this._getClientAbilityByKey(normalizedKey);
+      const mergedAbility = clientAbility
+        ? { ...(abilityData || {}), ...clientAbility }
+        : abilityData;
+
+      if (mergedAbility) {
+        this.localPlayerAbilities.set(normalizedKey, mergedAbility);
+        currentGame.localPlayer.abilities[normalizedKey] = mergedAbility;
       }
 
       if (defaultAbilityKeys.has(normalizedKey)) {
         return;
       }
 
-      if (abilityData && this.hud && this.hud.slots[visibleSlotIndex]) {
+      if (mergedAbility && this.hud && this.hud.slots[visibleSlotIndex]) {
         const slot = this.hud.slots[visibleSlotIndex];
-        slot.nameText.setText(abilityData.name);
-        this.tryAttachAbilityIcon(abilityData.name, slot.icon);
+        slot.nameText.setText(mergedAbility.name);
+        this.tryAttachAbilityIcon(mergedAbility.name, slot.icon);
+        this.hotbarSlotByAbilityKey.set(normalizedKey, visibleSlotIndex);
       }
       visibleSlotIndex += 1;
     });
+
+    this._updateHotbarCooldowns();
   }
 
   _hexColorToNumber(colorValue, fallback = 0xffffff) {
@@ -590,7 +841,11 @@ export default class BootScene extends Phaser.Scene {
     if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return fallback;
     return parseInt(normalized, 16);
   }
-
+  /**
+   * Genera possibili nomi base per audio/immagini a partire dal
+   * `abilityName`. Restituisce varianti come camelCase, underscored
+   * e versioni senza diacritici per cercare file risorsa.
+   */
   _abilityNameToAudioCandidates(abilityName) {
     const raw = String(abilityName || "").trim();
     if (!raw) return [];
@@ -615,60 +870,286 @@ export default class BootScene extends Phaser.Scene {
 
     const noDiacriticsCamel = words
       .map((w, i) => {
-        const norm = w
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
+        const norm = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         if (i === 0) return norm.charAt(0).toLowerCase() + norm.slice(1);
         return norm.charAt(0).toUpperCase() + norm.slice(1);
       })
       .join("");
 
     return Array.from(
-      new Set([raw, camel, underscored, compact, noDiacriticsCamel].filter(Boolean)),
+      new Set(
+        [raw, camel, underscored, compact, noDiacriticsCamel].filter(Boolean),
+      ),
     );
   }
-
+  /**
+   * Cerca e riproduce un file audio a partire da un `baseName`.
+   * Supporta fallback su più estensioni e caching in `this.audioFileCache`.
+   * `volume` è il volume target (0..1) scalato prima della riproduzione.
+   */
   _playAudioByBaseName(baseName, volume) {
     const safeVolume = Phaser.Math.Clamp(volume, 0, 1);
     if (safeVolume <= 0.02) return;
 
     const candidates = this._abilityNameToAudioCandidates(baseName);
     if (candidates.length === 0) return;
+    const supportedExtensions = ["mp3", "ogg", "m4a", "aac", "wav"];
 
     const tryPlayCandidate = (idx) => {
       if (idx >= candidates.length) return;
-      const candidate = candidates[idx];
-      const audioKey = `abilitySfx_${candidate}`;
-
-      if (this.cache.audio.exists(audioKey)) {
-        this.sound.play(audioKey, { volume: safeVolume });
-        return;
-      }
-
-      if (this.pendingAudioLoads.has(audioKey)) {
-        this.time.delayedCall(80, () => tryPlayCandidate(idx));
-        return;
-      }
-
-      this.pendingAudioLoads.add(audioKey);
-      this.load.audio(audioKey, `assets/sounds/${candidate}.mp3`);
-      this.load.once(`filecomplete-audio-${audioKey}`, () => {
-        this.pendingAudioLoads.delete(audioKey);
-        if (this.cache.audio.exists(audioKey)) {
-          this.sound.play(audioKey, { volume: safeVolume });
+      const candidate = String(candidates[idx]).replace(
+        /\.(ogg|mp3|m4a|aac|wav)$/i,
+        "",
+      );
+      const tryAudioExt = (extIdx) => {
+        if (extIdx >= supportedExtensions.length) {
+          tryPlayCandidate(idx + 1);
+          return;
         }
-      });
-      this.load.once(`loaderror`, () => {
-        this.pendingAudioLoads.delete(audioKey);
-        tryPlayCandidate(idx + 1);
-      });
-      this.load.start();
+
+        const ext = supportedExtensions[extIdx];
+        const path = `assets/sounds/${candidate}.${ext}`;
+        const cachedAudioKey = this.audioFileCache.get(path);
+
+        if (cachedAudioKey && this.cache.audio.exists(cachedAudioKey)) {
+          this.sound.play(cachedAudioKey, { volume: safeVolume });
+          return;
+        }
+
+        if (this.pendingAudioLoads.has(path)) {
+          this.time.delayedCall(80, () => {
+            const delayedKey = this.audioFileCache.get(path);
+            if (delayedKey && this.cache.audio.exists(delayedKey)) {
+              this.sound.play(delayedKey, { volume: safeVolume });
+              return;
+            }
+            tryAudioExt(extIdx + 1);
+          });
+          return;
+        }
+
+        const audioKey = `abilitySfx_${candidate}_${ext}`;
+        this.pendingAudioLoads.add(path);
+        this.load.audio(audioKey, path);
+        this.load.once(`filecomplete-audio-${audioKey}`, () => {
+          this.pendingAudioLoads.delete(path);
+          this.audioFileCache.set(path, audioKey);
+          if (this.cache.audio.exists(audioKey)) {
+            this.sound.play(audioKey, { volume: safeVolume });
+          }
+        });
+        this.load.once("loaderror", (fileObj) => {
+          if (!fileObj || fileObj.key !== audioKey) return;
+          this.pendingAudioLoads.delete(path);
+          tryAudioExt(extIdx + 1);
+        });
+        this.load.start();
+      };
+
+      tryAudioExt(0);
     };
 
     tryPlayCandidate(0);
   }
+  /**
+   * Crea (o restituisce se già esiste) un overlay HTML fissato al body
+   * usato per mostrare immagini su schermo (overlay di abilità).
+   * L'overlay è pointer-events: none e posizionato in cima (z-index alto).
+   */
+  _getOrCreateAbilityImageOverlay() {
+    if (this.htmlAbilityImageOverlay?.isConnected) {
+      return this.htmlAbilityImageOverlay;
+    }
 
-  _playAbilityFxSounds(effectPayload) {
+    const overlay = document.createElement("div");
+    overlay.id = "ability-image-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "transparent";
+    overlay.style.pointerEvents = "none";
+    overlay.style.overflow = "hidden";
+    overlay.style.zIndex = "9999";
+
+    document.body.appendChild(overlay);
+    this.htmlAbilityImageOverlay = overlay;
+    return overlay;
+  }
+  /**
+   * Pre-carica un'immagine tramite HTML Image e memorizza il risultato
+   * in `this.imageFileCache` per evitare caricamenti ripetuti.
+   * Restituisce una Promise<boolean> che risolve a true se caricata.
+   */
+  _preloadImagePath(path) {
+    if (this.imageFileCache.has(path)) {
+      return Promise.resolve(true);
+    }
+
+    if (this.pendingImageLoads.has(path)) {
+      return new Promise((resolve) => {
+        this.time.delayedCall(90, () => resolve(this.imageFileCache.has(path)));
+      });
+    }
+
+    this.pendingImageLoads.add(path);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        this.pendingImageLoads.delete(path);
+        this.imageFileCache.set(path, true);
+        resolve(true);
+      };
+      img.onerror = () => {
+        this.pendingImageLoads.delete(path);
+        resolve(false);
+      };
+      img.src = path;
+    });
+  }
+  /**
+   * Inserisce nell'overlay HTML un elemento che mostra l'immagine `path`.
+   * Applica animazione CSS/WAAPI e rimuove il nodo alla fine dell'animazione.
+   */
+  _showAbilityImageHtml(path) {
+    const overlay = this._getOrCreateAbilityImageOverlay();
+    if (!overlay) return;
+
+    const card = document.createElement("div");
+    card.style.position = "absolute";
+    card.style.left = "0";
+    card.style.top = "0";
+    card.style.width = "100vw";
+    card.style.height = "100vh";
+    card.style.transform = "translateY(24%)";
+    card.style.opacity = "0";
+    card.style.padding = "0";
+    card.style.border = "0";
+    card.style.background = "transparent";
+    card.style.boxShadow = "none";
+
+    const img = document.createElement("img");
+    img.src = path;
+    img.alt = "ability-fx";
+    img.style.display = "block";
+    img.style.width = "100vw";
+    img.style.height = "100vh";
+    img.style.objectFit = "fill";
+    img.style.filter = "none";
+
+    card.appendChild(img);
+    overlay.appendChild(card);
+
+    console.log("[AbilityImage] overlay append", {
+      path,
+      overlayChildren: overlay.childElementCount,
+      viewport: [window.innerWidth, window.innerHeight],
+    });
+
+    const anim = card.animate(
+      [
+        { transform: "translateY(24%)", opacity: 0, offset: 0 },
+        { transform: "translateY(0)", opacity: 1, offset: 0.26 },
+        { transform: "translateY(0)", opacity: 1, offset: 0.68 },
+        { transform: "translateY(-6%)", opacity: 0, offset: 1 },
+      ],
+      {
+        duration: 1500,
+        easing: "cubic-bezier(.22,.61,.36,1)",
+        fill: "forwards",
+      },
+    );
+
+    anim.onfinish = () => {
+      if (card.isConnected) card.remove();
+    };
+  }
+  /**
+   * Data una baseName (es. 'granitBlastImage1') prova varie estensioni
+   * e candidate generate da `_abilityNameToAudioCandidates`, pre-carica
+   * e mostra la prima immagine valida tramite `_showAbilityImageHtml`.
+   */
+  _playScreenImageByBaseName(baseName) {
+    const candidates = this._abilityNameToAudioCandidates(baseName);
+    console.log("[AbilityImage] candidates from baseName", baseName, candidates);
+    if (candidates.length === 0) return;
+    const supportedExtensions = ["png", "webp", "jpg", "jpeg"];
+
+    const tryCandidate = (idx) => {
+      if (idx >= candidates.length) return;
+      const candidate = String(candidates[idx]).replace(/\.(png|webp|jpg|jpeg)$/i, "");
+
+      const tryExt = (extIdx) => {
+        if (extIdx >= supportedExtensions.length) {
+          tryCandidate(idx + 1);
+          return;
+        }
+
+        const ext = supportedExtensions[extIdx];
+        const path = `assets/images/${candidate}.${ext}`;
+        console.log("[AbilityImage] trying path", path, "cached:", this.imageFileCache.has(path));
+
+        this._preloadImagePath(path).then((loaded) => {
+          if (loaded) {
+            console.log("[AbilityImage] loaded path", path);
+            this._showAbilityImageHtml(path);
+            return;
+          }
+          console.log("[AbilityImage] failed path", path);
+          tryExt(extIdx + 1);
+        });
+      };
+
+      tryExt(0);
+    };
+
+    tryCandidate(0);
+  }
+  /**
+   * Se l'abilità fornisce `imagesOnScreen`, ne sceglie una a caso e
+   * la visualizza a schermo tramite `_playScreenImageByBaseName`.
+   */
+  _playAbilityScreenImage(ability) {
+    const imagesOnScreen = Array.isArray(ability?.imagesOnScreen)
+      ? ability.imagesOnScreen
+      : [];
+    const selected = this._pickRandomAudioClip(imagesOnScreen);
+    console.log(
+      "[AbilityImage] selected clip",
+      selected,
+      "from imagesOnScreen",
+      imagesOnScreen,
+      "ability",
+      ability?.name,
+    );
+    if (!selected) return;
+    this._playScreenImageByBaseName(selected);
+  }
+  /**
+   * Ritorna un elemento random valido dall'array `clips` oppure null.
+   * Filtra valori non stringa o stringhe vuote.
+   */
+  _pickRandomAudioClip(clips) {
+    if (!Array.isArray(clips) || clips.length === 0) return null;
+    const validClips = clips.filter(
+      (clip) => typeof clip === "string" && clip.trim(),
+    );
+    if (validClips.length === 0) return null;
+    return Phaser.Utils.Array.GetRandom(validClips);
+  }
+  /**
+   * Normalizza un valore di volume a un numero tra 0 e 1.
+   * Se il valore non è un numero valido ritorna il `fallback` clamped.
+   */
+  _resolveAudioVolume(value, fallback = 1) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return Phaser.Math.Clamp(fallback, 0, 1);
+    return Phaser.Math.Clamp(parsed, 0, 1);
+  }
+  /**
+   * Gestisce la selezione e riproduzione dei suoni legati a un effetto
+   * di abilità. Usa distance attenuation semplice ed eventuali clip
+   * specificati nel payload o nella definizione ability.
+   */
+  _playAbilityFxSounds(effectPayload, ability) {
     if (!effectPayload) return;
 
     const originX = Number(effectPayload.x);
@@ -677,26 +1158,80 @@ export default class BootScene extends Phaser.Scene {
 
     const listenerX = Number.isFinite(this.player?.x) ? this.player.x : originX;
     const listenerY = Number.isFinite(this.player?.y) ? this.player.y : originY;
-    const distance = Phaser.Math.Distance.Between(listenerX, listenerY, originX, originY);
-    const hearDistance = Math.max(500, Number(effectPayload.hearDistance) || 2600);
+    const distance = Phaser.Math.Distance.Between(
+      listenerX,
+      listenerY,
+      originX,
+      originY,
+    );
+    const hearDistance = Math.max(
+      500,
+      Number(effectPayload.hearDistance) || 2600,
+    );
     const distanceVolume = Phaser.Math.Clamp(1 - distance / hearDistance, 0, 1);
 
     const audioClips = Array.isArray(effectPayload.audioClips)
       ? effectPayload.audioClips
-      : this._abilityNameToAudioCandidates(effectPayload.abilityName);
-    audioClips.forEach((clipName) => {
-      this._playAudioByBaseName(clipName, distanceVolume);
-    });
+      : Array.isArray(ability?.soundEffects)
+        ? ability.soundEffects
+        : this._abilityNameToAudioCandidates(effectPayload.abilityName);
+
+    const voiceClips = Array.isArray(effectPayload.voiceClips)
+      ? effectPayload.voiceClips
+      : Array.isArray(ability?.voiceEffects)
+        ? ability.voiceEffects
+        : [];
+
+    const randomSoundClip = this._pickRandomAudioClip(audioClips);
+    const randomVoiceClip = this._pickRandomAudioClip(voiceClips);
+
+    const soundVolumeScale = this._resolveAudioVolume(
+      ability?.soundVolume ?? ability?.volume,
+      1,
+    );
+    const voiceVolumeScale = this._resolveAudioVolume(
+      ability?.voiceVolume ?? ability?.volume,
+      1,
+    );
+
+    if (randomSoundClip) {
+      this._playAudioByBaseName(
+        randomSoundClip,
+        distanceVolume * soundVolumeScale,
+      );
+    }
+    if (randomVoiceClip) {
+      this._playAudioByBaseName(
+        randomVoiceClip,
+        distanceVolume * voiceVolumeScale,
+      );
+    }
 
     const isAttacker = effectPayload.ownerId === this.localUserId;
-    if (isAttacker && Array.isArray(effectPayload.attackerAudioClips)) {
-      effectPayload.attackerAudioClips.forEach((clipName) => {
-        this._playAudioByBaseName(clipName, 1);
-      });
+    const attackerAudioClips = Array.isArray(effectPayload.attackerAudioClips)
+      ? effectPayload.attackerAudioClips
+      : Array.isArray(ability?.attackerSoundEffects)
+        ? ability.attackerSoundEffects
+        : [];
+    const attackerVolumeScale = this._resolveAudioVolume(
+      ability?.attackerVolume ?? ability?.volume,
+      1,
+    );
+
+    if (isAttacker && attackerAudioClips.length > 0) {
+      const randomAttackerClip = this._pickRandomAudioClip(attackerAudioClips);
+      if (randomAttackerClip) {
+        this._playAudioByBaseName(randomAttackerClip, attackerVolumeScale);
+      }
     }
   }
 
-  _playRayCapsuleFx(effectPayload) {
+  /**
+   * Esegue l'animazione grafica per un effetto di tipo "ray-capsule".
+   * Disegna la linea progressiva e gestisce la durata tramite tween.
+   * Chiama anche `_playAbilityFxSounds` per riprodurre i suoni associati.
+   */
+  _playRayCapsuleFx(effectPayload, ability) {
     if (!effectPayload || effectPayload.type !== "ray-capsule") return;
 
     const startX = Number(effectPayload.x);
@@ -704,15 +1239,21 @@ export default class BootScene extends Phaser.Scene {
     const direction = Number.isFinite(effectPayload.direction)
       ? effectPayload.direction
       : 0;
-    const range = Number.isFinite(effectPayload.range) ? effectPayload.range : 1200;
-    const radius = Number.isFinite(effectPayload.radius) ? effectPayload.radius : 100;
+    const range = Number.isFinite(effectPayload.range)
+      ? effectPayload.range
+      : 1200;
+    const radius = Number.isFinite(effectPayload.radius)
+      ? effectPayload.radius
+      : 100;
     const durationMs = Math.max(
       60,
       Math.floor((Number(effectPayload.duration) || 0.2) * 1000),
     );
     const colors = Array.isArray(effectPayload.colors)
       ? effectPayload.colors
-      : ["#ffffff", "#cccccc", "#888888"];
+      : Array.isArray(ability?.colors)
+        ? ability.colors
+        : ["#ffffff", "#cccccc", "#888888"];
 
     const endX = startX + Math.cos(direction) * range;
     const endY = startY + Math.sin(direction) * range;
@@ -751,7 +1292,7 @@ export default class BootScene extends Phaser.Scene {
     };
 
     drawAtProgress(0);
-    this._playAbilityFxSounds(effectPayload);
+    this._playAbilityFxSounds(effectPayload, ability);
 
     this.tweens.addCounter({
       from: 0,
@@ -767,6 +1308,68 @@ export default class BootScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Wrapper pubblico per disegnare un raggio (ray-capsule).
+   * Viene esposto alle `effect` delle abilità.
+   */
+  drawRay(effectPayload, ability) {
+    this._playRayCapsuleFx(effectPayload, ability);
+  }
+
+  /**
+   * Disegna un effetto di tipo "blast" (cerchio espandente) ed esegue
+   * i suoni legati all'evento.
+   */
+  drawBlast(effectPayload, ability) {
+    if (!effectPayload || effectPayload.type !== "blast") return;
+
+    const x = Number(effectPayload.x);
+    const y = Number(effectPayload.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    const radius = Math.max(18, Number(effectPayload.radius) || 120);
+    const durationMs = Math.max(
+      80,
+      Math.floor((Number(effectPayload.duration) || 0.18) * 1000),
+    );
+    const colors = Array.isArray(effectPayload.colors)
+      ? effectPayload.colors
+      : Array.isArray(ability?.colors)
+        ? ability.colors
+        : ["#ffffff", "#d0d0d0", "#999999"];
+
+    const g = this.add.graphics();
+    g.setDepth(1100);
+
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: durationMs,
+      ease: "Sine.Out",
+      onUpdate: (tween) => {
+        const p = Phaser.Math.Clamp(tween.getValue(), 0, 1);
+        const fade = 1 - p;
+        g.clear();
+        for (let i = colors.length - 1; i >= 0; i--) {
+          const layerT = (i + 1) / colors.length;
+          const c = this._hexColorToNumber(colors[i], 0xffffff);
+          const r = radius * (0.25 + p * layerT);
+          g.fillStyle(c, (0.1 + 0.35 * layerT) * fade);
+          g.fillCircle(x, y, r);
+        }
+      },
+      onComplete: () => {
+        if (g && g.active) g.destroy();
+      },
+    });
+
+    this._playAbilityFxSounds(effectPayload, ability);
+  }
+  /**
+   * Risolve l'oggetto abilità (client-side) corrispondente a un
+   * `effectPayload` ricevuto dal server. Effettua merge tra
+   * definizione server (se presente) e definizione client.
+   */
   _resolveAbilityForEffect(effectPayload) {
     if (!effectPayload) return null;
     const effectKey = effectPayload.abilityKey
@@ -780,29 +1383,55 @@ export default class BootScene extends Phaser.Scene {
     const currentGame = gameState.currentGame;
     const keyedAbilities = this._buildKeyedAbilityMap(currentGame || {});
     if (effectKey && keyedAbilities.has(effectKey)) {
-      return keyedAbilities.get(effectKey);
+      const serverAbility = keyedAbilities.get(effectKey);
+      const clientAbility = this._getClientAbilityByKey(effectKey);
+      return clientAbility
+        ? { ...(serverAbility || {}), ...clientAbility }
+        : serverAbility;
     }
 
     return null;
   }
-
+  /**
+   * Entry point per l'esecuzione di un effetto abilità lato client.
+   * - risolve l'abilità via `_resolveAbilityForEffect`
+   * - mostra l'immagine su schermo (se presente)
+   * - esegue la funzione `effect` dell'abilità (se fornita)
+   * - altrimenti esegue i renderer predefiniti per type (ray/blast)
+   */
   playAbilityFx(effectPayload) {
     if (!effectPayload || typeof effectPayload !== "object") return;
 
     const ability = this._resolveAbilityForEffect(effectPayload);
+    if (ability) {
+      this._playAbilityScreenImage(ability);
+    }
     if (ability && typeof ability.effect === "function") {
-      const handledByCustomEffect = ability.effect(effectPayload, this);
+      const handledByCustomEffect = ability.effect(effectPayload, this, {
+        drawRay: (payload) => this.drawRay(payload, ability),
+        drawBlast: (payload) => this.drawBlast(payload, ability),
+        playSounds: (payload) => this._playAbilityFxSounds(payload, ability),
+      });
       if (handledByCustomEffect === true) {
         return;
       }
     }
 
     if (effectPayload.type === "ray-capsule") {
-      this._playRayCapsuleFx(effectPayload);
+      this.drawRay(effectPayload, ability);
+      return;
+    }
+
+    if (effectPayload.type === "blast") {
+      this.drawBlast(effectPayload, ability);
     }
   }
 
-  drawBar(graphics, x, y, width, height, ratio, fillColor) {
+    /**
+     * Disegna una barra UI su `graphics` (usata per hp/energy).
+     * Parametri: graphics, x, y, width, height, ratio [0..1], fillColor.
+     */
+    drawBar(graphics, x, y, width, height, ratio, fillColor) {
     const safeRatio = Math.max(0, Math.min(1, ratio));
     graphics.clear();
     graphics.fillStyle(0x0f1115, 0.82);
@@ -819,6 +1448,16 @@ export default class BootScene extends Phaser.Scene {
     graphics.strokeRoundedRect(x, y, width, height, 8);
   }
 
+  /**
+   * Imposta e disegna una barra UI (es. vita/energia) su un oggetto Graphics.
+   * - `graphics`: oggetto Graphics su cui disegnare
+   * - layout: x,y,width,height
+   * - `ratio`: valore [0..1] di riempimento
+   * - `fillColor`: colore della parte piena
+   */
+  
+  
+  
   tryAttachAbilityIcon(abilityName, iconSprite) {
     if (!abilityName || !iconSprite) return;
     const safeBaseName = String(abilityName)
@@ -845,7 +1484,13 @@ export default class BootScene extends Phaser.Scene {
     });
     this.load.start();
   }
+  /**
+   * Prova ad associare un'icona alla voce hotbar corrispondente a `abilityName`.
+   * Carica dinamicamente l'immagine `assets/images/<sanitized>_hotbarSprite.png`
+   * se non è già presente nella cache delle textures.
+   */
 
+  
   createGameHud(currentGame) {
     const width = this.scale.width;
     const height = this.scale.height;
@@ -892,10 +1537,24 @@ export default class BootScene extends Phaser.Scene {
         .setOrigin(0, 0);
       bg.setStrokeStyle(2, 0xffffff, 0.2);
 
+      const cooldownOverlay = this.add
+        .rectangle(x, hotbarY, slotSize, slotSize, 0x000000, 0.55)
+        .setOrigin(0, 0)
+        .setVisible(false);
+
       const icon = this.add
         .image(x + slotSize * 0.5, hotbarY + slotSize * 0.42, "sensorDot")
         .setDisplaySize(slotSize * 0.55, slotSize * 0.55)
         .setAlpha(0.95);
+
+      const cooldownText = this.add
+        .text(x + slotSize * 0.5, hotbarY + slotSize * 0.52, "", {
+          fontSize: `${Math.max(10, Math.floor(slotSize * 0.2))}px`,
+          color: "#f6f7fb",
+          fontStyle: "700",
+        })
+        .setOrigin(0.5, 0.5)
+        .setVisible(false);
 
       const nameText = this.add
         .text(x + slotSize * 0.5, hotbarY + slotSize - 8, ability.name, {
@@ -907,7 +1566,7 @@ export default class BootScene extends Phaser.Scene {
         .setOrigin(0.5, 1);
 
       this.tryAttachAbilityIcon(ability.name, icon);
-      hud.slots.push({ bg, icon, nameText });
+      hud.slots.push({ bg, cooldownOverlay, icon, cooldownText, nameText });
     });
 
     const barsY = hotbarY - 36;
@@ -937,7 +1596,13 @@ export default class BootScene extends Phaser.Scene {
       hud.pointsText,
     ];
     hud.slots.forEach((slot) => {
-      toPin.push(slot.bg, slot.icon, slot.nameText);
+      toPin.push(
+        slot.bg,
+        slot.cooldownOverlay,
+        slot.icon,
+        slot.cooldownText,
+        slot.nameText,
+      );
     });
 
     toPin.forEach((obj) => {
@@ -949,6 +1614,10 @@ export default class BootScene extends Phaser.Scene {
     this.updateHudValues();
   }
 
+  /**
+   * Aggiorna i valori della HUD (`hp`, `energy`, `points`) leggendo
+   * lo stato locale del giocatore e ridisegnando le barre tramite `drawBar`.
+   */
   updateHudValues() {
     if (!this.hud) return;
 
@@ -990,6 +1659,10 @@ export default class BootScene extends Phaser.Scene {
     this.hud.pointsText.setText(`Punti: ${Math.max(0, Math.round(points))}`);
   }
 
+  /**
+   * Genera una texture "erba" procedurale usata per il background del mondo.
+   * Viene chiamata in `create()` all'inizio della scena.
+   */
   createGrassTexture() {
     const g = this.add.graphics();
     g.fillStyle(0x4f8f3b, 1);
@@ -1007,6 +1680,10 @@ export default class BootScene extends Phaser.Scene {
     g.destroy();
   }
 
+  /**
+   * Crea le texture per rocce e cespugli a partire dalle definizioni
+   * in `ROCK_TYPES` e `BUSH_TYPES`. Viene usata per evitare asset esterni.
+   */
   createObstacleTextures() {
     for (const def of Object.values(ROCK_TYPES)) {
       const g = this.add.graphics();
@@ -1022,6 +1699,10 @@ export default class BootScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Crea le texture per rocce e cespugli a partire dalle definizioni
+   * in `ROCK_TYPES` e `BUSH_TYPES`. Viene usata per evitare asset esterni.
+   */
   createPlayerTexture() {
     const g = this.add.graphics();
     g.fillStyle(0xb0b0b0, 1);
@@ -1032,6 +1713,9 @@ export default class BootScene extends Phaser.Scene {
     g.destroy();
   }
 
+  /**
+   * Genera la texture circolare per il giocatore (sprite semplice).
+   */
   createSensorTexture() {
     // Evita che i sensori usino la texture di default (es. 32x32),
     // che sposta il body in base a displayOriginX/Y.
@@ -1043,6 +1727,9 @@ export default class BootScene extends Phaser.Scene {
     g.destroy();
   }
 
+  /**
+   * Crea una piccola texture 2x2 usata come base per sensori fisici invisibili.
+   */
   _getLocalPoint(gameObject, worldPoint) {
     const scaleX = gameObject.scaleX || 1;
     const scaleY = gameObject.scaleY || 1;
@@ -1064,6 +1751,10 @@ export default class BootScene extends Phaser.Scene {
   //                  = wx - 0.5  ← errore di mezzo pixel, trascurabile
   //  (con r >> 0.5 l'approssimazione è perfetta)
 
+  /**
+   * Crea un sensore circolare fisico invisibile collocato in world (wx,wy)
+   * con raggio `r` e lo aggiunge al `group` fornito.
+   */
   _createSensor(group, wx, wy, r) {
     const s = group.create(wx, wy, "sensorDot");
     s.setVisible(false);
@@ -1076,6 +1767,10 @@ export default class BootScene extends Phaser.Scene {
     return s;
   }
 
+  /**
+   * Crea un sensore rettangolare invisibile centrato in (wx,wy)
+   * con dimensioni w×h e lo aggiunge al `group` fornito.
+   */
   _createRectSensor(group, wx, wy, w, h) {
     const s = group.create(wx, wy, "sensorDot");
     s.setVisible(false);
@@ -1090,6 +1785,10 @@ export default class BootScene extends Phaser.Scene {
     return s;
   }
 
+  /**
+   * Istanzia sensori (cerchi e rettangoli) a partire dalla definizione
+   * `def` (es. ROCK_TYPES) posizionandoli intorno a (spriteX,spriteY).
+   */
   _spawnSensors(group, def, spriteX, spriteY, scale) {
     const hw = def.textureW / 2;
     const hh = def.textureH / 2;
@@ -1124,6 +1823,10 @@ export default class BootScene extends Phaser.Scene {
 
   // ── Factories ────────────────────────────
 
+  /**
+   * Aggiunge una roccia nel mondo usando la definizione `type`.
+   * Restituisce lo sprite creato e imposta i sensori corrispondenti.
+   */
   addRockObstacle(x, y, scale = 1, type = "granite") {
     const def = ROCK_TYPES[type] ?? ROCK_TYPES.granite;
     const rock = this.obstacles.create(x, y, def.textureKey);
@@ -1136,6 +1839,10 @@ export default class BootScene extends Phaser.Scene {
     return rock;
   }
 
+  /**
+   * Aggiunge un cespuglio nel mondo usando la definizione `type`.
+   * Restituisce lo sprite creato e imposta i sensori corrispondenti.
+   */
   addBushObstacle(x, y, scale = 1, type = "green") {
     const def = BUSH_TYPES[type] ?? BUSH_TYPES.green;
     const bush = this.obstacles.create(x, y, def.textureKey);
@@ -1148,11 +1855,17 @@ export default class BootScene extends Phaser.Scene {
     return bush;
   }
 
+  /**
+   * Wrapper che aggiunge un ostacolo di tipo `rock` o `bush`.
+   */
   addObstacle(x, y, obstacle = "rock", type, scale = 1) {
     if (obstacle === "rock") return this.addRockObstacle(x, y, scale, type);
     if (obstacle === "bush") return this.addBushObstacle(x, y, scale, type);
   }
 
+  /**
+   * Posiziona `count` oggetti eseguendo `fn(x,y,scale)` con valori random.
+   */
   _placeRandom(fn, count, minScale, maxScale) {
     for (let i = 0; i < count; i++) {
       fn(
@@ -1163,6 +1876,9 @@ export default class BootScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Crea ostacoli a partire da un array `obstacles` ricevuto dal server.
+   */
   _spawnObstaclesFromServer(obstacles) {
     if (!Array.isArray(obstacles)) return;
 
@@ -1185,12 +1901,17 @@ export default class BootScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Inizializza la scena: crea textures, mondo fisico, player, input
+   * e HUD. Viene eseguito una sola volta quando la scena parte.
+   */
   create() {
     const currentGame = gameState.currentGame || {};
 
     this.worldWidth = currentGame.worldWidth || this.worldWidth;
     this.worldHeight = currentGame.worldHeight || this.worldHeight;
     this.playerSpeed = currentGame.playerSpeed || this.playerSpeed;
+    this.basePlayerSpeed = this.playerSpeed;
 
     this.createGrassTexture();
     this.createObstacleTextures();
@@ -1275,8 +1996,31 @@ export default class BootScene extends Phaser.Scene {
     ]);
     // Le abilita restano server-side: inviamo solo key + stato premuto/rilasciato.
     this.input.keyboard.on("keydown", (event) => {
-      const key = event.key.toUpperCase();
+      const key =
+        abilityKeyByCode[event.code] || String(event.key || "").toUpperCase();
       if (!abilityKeys.includes(key)) return;
+
+      if (key === "Q") {
+        const dashAbility = DEFAULT_ABILITYES.find(
+          (ability) => String(ability?.key || "").toUpperCase() === "Q",
+        );
+        if (!dashAbility || this._isAbilityOnCooldown("Q")) return;
+
+        dashAbility.effect(
+          {
+            type: "dash",
+            abilityKey: "Q",
+            ownerId: this.localUserId,
+            x: this.player?.x,
+            y: this.player?.y,
+          },
+          this,
+        );
+        this._startLocalAbilityCooldown("Q");
+        this._updateHotbarCooldowns();
+        console.log("Dash attivato localmente");
+        return;
+      }
 
       // Se abbiamo gia ricevuto la lista abilita dal server, ignora tasti non assegnati.
       if (
@@ -1284,8 +2028,11 @@ export default class BootScene extends Phaser.Scene {
         this.localPlayerAbilities.size > 0
       ) {
         if (!this.localPlayerAbilities.has(key)) return;
+        if (this._isAbilityOnCooldown(key)) return;
       }
 
+      this._startLocalAbilityCooldown(key);
+      this._updateHotbarCooldowns();
       socketFuncions.emitAbilityInput(key);
     });
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -1328,8 +2075,16 @@ export default class BootScene extends Phaser.Scene {
     this.createGameHud(currentGame);
   }
 
+  /**
+   * Sincronizza lo stato dei giocatori remoti a partire dal payload
+   * fornito dal server. Aggiorna o crea gli sprite remoti e rimuove
+   * quelli non più presenti.
+   */
   syncPlayersFromServer(playersPayload) {
     if (!Array.isArray(playersPayload)) return;
+    if (!this.scene?.isActive()) return;
+
+  // single definition continues below
 
     const seenPlayers = new Set();
 
@@ -1351,15 +2106,15 @@ export default class BootScene extends Phaser.Scene {
               ? playerData.attributes.domainPoints
               : this.localPlayerState.points,
         };
-        if (!this.localSpawnSynced) {
+        if (!this.localSpawnSynced && this.player) {
           if (this.player?.body) {
             this.player.body.reset(playerData.x, playerData.y);
-          } else if (this.player) {
+          } else {
             this.player.setPosition(playerData.x, playerData.y);
           }
           this.localSpawnSynced = true;
         }
-        if (typeof playerData.direction === "number") {
+        if (this.player?.active && typeof playerData.direction === "number") {
           this.player.rotation = playerData.direction;
         }
         return;
@@ -1377,6 +2132,7 @@ export default class BootScene extends Phaser.Scene {
         this.remotePlayers.set(playerData.userId, remotePlayer);
       }
 
+      if (!remotePlayer || !remotePlayer.active) return;
       remotePlayer.setPosition(playerData.x, playerData.y);
       if (typeof playerData.direction === "number") {
         remotePlayer.rotation = playerData.direction;
@@ -1392,6 +2148,13 @@ export default class BootScene extends Phaser.Scene {
   }
 
   update(_time, delta) {
+    const currentGame = gameState.currentGame;
+    const hasActiveMatch =
+      currentGame &&
+      (Array.isArray(currentGame.players)
+        ? currentGame.players.some((p) => p?.userId === this.localUserId)
+        : true);
+
     let dirX = 0;
     let dirY = 0;
 
@@ -1441,7 +2204,7 @@ export default class BootScene extends Phaser.Scene {
       const rotatedEnough = angleDelta >= threshold;
       const timeElapsed = _time - this.lastTransformSentAt >= 50;
 
-      if (movedEnough || rotatedEnough || timeElapsed) {
+      if (hasActiveMatch && (movedEnough || rotatedEnough || timeElapsed)) {
         this.lastSentDirection = angle;
         this.lastSentX = this.player.x;
         this.lastSentY = this.player.y;
@@ -1458,6 +2221,7 @@ export default class BootScene extends Phaser.Scene {
     this.positionText.setText(
       `Posizione: ${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}`,
     );
+    this._updateHotbarCooldowns();
     this.updateHudValues();
   }
 }

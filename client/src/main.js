@@ -27,8 +27,6 @@ const stanza = {};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //game utils
-
-const imageCache = new Map();
 const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
@@ -156,6 +154,11 @@ export const mainObjects = {
     stanza.game = null;
     gameState.currentGame = null;
     pendingAbilitiesIndex = null;
+
+    if (game) {
+      game.destroy(true);
+      game = null;
+    }
   },
   startGame: function () {
     if (game) game.destroy(true);
@@ -217,7 +220,14 @@ export const mainObjects = {
   },
   playAbilityFx: function (effectPayload) {
     const gameScene = game?.scene?.getScene("BootScene");
-    if (!gameScene || typeof gameScene.playAbilityFx !== "function") return;
+    if (!gameScene || typeof gameScene.playAbilityFx !== "function") {
+      console.log("[AbilityImage] playAbilityFx skipped: scene not ready", {
+        hasGame: Boolean(game),
+        hasScene: Boolean(gameScene),
+      });
+      return;
+    }
+    console.log("[AbilityImage] playAbilityFx bridge", effectPayload);
     gameScene.playAbilityFx(effectPayload);
   },
 

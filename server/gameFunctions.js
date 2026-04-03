@@ -28,29 +28,56 @@ const DEFAULT_ABILITYES =[{
   duration: 0.3,
   activeCooldown: false,
   effect: (player) => {
-    player.invulnerable = true;
-    player.speedPercentage = 2.5;
+    if (!player?.attributes) return null;
+    player.attributes.invulnerable = true;
+    player.attributes.speedPercentage = 2.5;
     setTimeout(() => {
-      player.invulnerable = false;
-      player.speedPercentage = 1;
+      if (!player?.attributes) return;
+      player.attributes.invulnerable = false;
+      player.attributes.speedPercentage = 1;
     }, 300);
+    return {
+      abilityKey: "Q",
+      abilityName: "dash",
+      type: "dash",
+      x: player.x,
+      y: player.y,
+      direction: Number.isFinite(player.direction) ? player.direction : 0,
+      duration: 0.3,
+      ownerId: player.userId,
+      hearDistance: 800,
+    };
   },
 }]
 
 const ABILITIES = [{
   name: "Granitè blast",
+  key: "1",
   type: "ray",
-  radius: 100,
+  radius: 50,
   damage: 100,
-  range: 2000,
+  range: 4000,
   cooldown: 10,
-  duration: 0.2,
-  soundEffects: ["granitèBlast"],
-  attackerSoundEffects: [],
-  effect: (player, room) => {
-    //questa abilità è un ray istantaneo che parte dal player e si espante nella direzione in cui sta guardando, se colpisce un altro player, gli fa danno e lo spinge indietro
+  duration: 0.4,
+  colors: ["#D5F2F8", "#61EBF5", "#4AFAFA"],
+  effect: (player, room, ctx) => {
+    return ctx.helpers.applyRayCapsuleAbility(player, room, ctx.ability);
   },
-}]
+  
+},   {
+    name: "Cero",
+    key: "2",
+    type: "ray",
+    radius: 80,
+    damage: 100,
+    range: 2000,
+    cooldown: 8,
+    duration: 1,
+    colors: ["#f12e2e", "#df6b6b", "#330202"],
+  effect: (player, room, ctx) => {
+    return ctx.helpers.applyRayCapsuleAbility(player, room, ctx.ability);
+  },
+  },]
 
 function createSeededRandom(seedValue) {
   let seed = 0;
@@ -214,9 +241,6 @@ function computeCapsuleRayHits(shooter, room, ability) {
       range,
       radius,
       duration: Number.isFinite(ability?.duration) ? ability.duration : 0.2,
-      colors: Array.isArray(ability?.colors) ? ability.colors : ["#ffffff", "#cccccc", "#888888"],
-      audioClips: Array.isArray(ability?.soundEffects) ? ability.soundEffects : [],
-      attackerAudioClips: Array.isArray(ability?.attackerSoundEffects) ? ability.attackerSoundEffects : [],
       hearDistance: Math.max(range * 1.25, 1200),
       ownerId: shooter.userId,
     },
@@ -247,14 +271,6 @@ function applyRayCapsuleAbility(player, room, ability) {
 function executeAbilityServerEffect(player, room, ability, io) {
   if (!ability || !player || !room) return null;
 
-  let payload = null;
-
-  // Default behavior by type.
-  if (ability.type === "ray") {
-    payload = applyRayCapsuleAbility(player, room, ability);
-  }
-
-  // Custom per-ability behavior can override/extend default.
   const customEffect =
     typeof ability.effect === "function"
       ? ability.effect
@@ -262,21 +278,23 @@ function executeAbilityServerEffect(player, room, ability, io) {
         ? ability.efffect
         : null;
 
-  if (customEffect) {
-    const customPayload = customEffect(player, room, {
-      io,
-      ability,
-      helpers: {
-        applyRayCapsuleAbility,
-        computeCapsuleRayHits,
-      },
-    });
-    if (customPayload && typeof customPayload === "object") {
-      payload = customPayload;
+  if (!customEffect) {
+    // Backward compatibility for abilities without custom effect.
+    if (ability.type === "ray") {
+      return applyRayCapsuleAbility(player, room, ability);
     }
+    return null;
   }
 
-  return payload;
+  const payload = customEffect(player, room, {
+    io,
+    ability,
+    helpers: {
+      applyRayCapsuleAbility,
+      computeCapsuleRayHits,
+    },
+  });
+  return payload && typeof payload === "object" ? payload : null;
 }
 
 function getUserRoomFromRooms(userId, rooms) {

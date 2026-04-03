@@ -156,6 +156,7 @@ export const socketFuncions = {
       mainObjects.updatePlayers(playersPayload);
     });
     tSocket.on("018", (effectPayload) => {
+      console.log("messaggio 018 ricevuto", effectPayload);
       mainObjects.playAbilityFx(effectPayload);
     });
     tSocket.on("019", (abilitiesIndex) => {
