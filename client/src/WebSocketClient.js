@@ -165,6 +165,12 @@ export const socketFuncions = {
       //aggiungo le abilità al player locale
       mainObjects.updateAbilities(abilitiesIndex);
     });
+    tSocket.on("020", () => {
+      mainObjects.playerDead();
+    });
+    tSocket.on("021", (spawnX, spawnY) => {
+      mainObjects.playerRespawn(spawnX, spawnY);
+    });
     this.socket = tSocket;
     return tSocket;
   },

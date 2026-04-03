@@ -38,6 +38,8 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **017**|`hai usato abilità`|`<abilityID>`|
 | **018**|`broadcast: abilità usata in questo punto e in questa direzione`|`<abilityID>, <x>, <y>, <direction>`|
 | **019**|`ecco le tue abilità`|`[abilitesIndexs]`|
+| **020**|`sei morto blud`|`vuoto`|
+| **021**|`ecco il tuo respawn point`|`<spawnX>, <spawnY>`|
 
 ---
 

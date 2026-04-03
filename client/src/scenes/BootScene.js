@@ -442,10 +442,10 @@ const DEFAULT_ABILITYES = [
     soundEffects: ["sonido1"],
     effect: (_payload, scene) => {
       console.log("Dash ability activated");
-      
+
       if (!scene?.player) return;
-      //play dash sound effect 
-      
+      //play dash sound effect
+
       const dashDurationMs = 300;
       const dashMultiplier = 2.5;
       const baseSpeed = Number.isFinite(scene.basePlayerSpeed)
@@ -466,7 +466,10 @@ const DEFAULT_ABILITYES = [
         if (!scene?.player) return;
         scene.playerSpeed = baseSpeed;
         if (scene.player?.body?.setMaxVelocity) {
-          scene.player.body.setMaxVelocity(scene.playerSpeed, scene.playerSpeed);
+          scene.player.body.setMaxVelocity(
+            scene.playerSpeed,
+            scene.playerSpeed,
+          );
         }
         scene.dashResetEvent = null;
       });
@@ -480,6 +483,15 @@ const DEFAULT_ABILITYES = [
  * (es. imagesOnScreen, soundEffects) e la funzione `effect`
  * che viene chiamata per disegnare VFX/SFX locali.
  */
+
+/*
+ * Abilità da implementare:
+ * - Granitè Blast di ryu di jjk
+ * - Cero degli aranchisti di bleach
+ * - Hollow purple di hojo di jjk (Un "proiettile" circolare enorme infermabile che prosegue in linea retta, fino alla fine della mappa)
+ * - Dismatle di sukuna da jjk (Un "proiettile" a forma di mezzaluna che si muove in linea retta)
+ *
+ **/
 const ABILITIES = [
   {
     name: "Granitè blast",
@@ -490,7 +502,9 @@ const ABILITIES = [
     cooldown: 10,
     colors: ["#D5F2F8", "#61EBF5", "#4AFAFA"],
     soundEffects: [],
-    imagesOnScreen: ["granitBlastImage1"],
+    lastImage: "",
+    lastSoundEffect: "",
+    imagesOnScreen: ["JaneJuliet"],
     volume: 0.3,
     voiceEffects: [
       "granitBlast_voice1",
@@ -519,6 +533,9 @@ const ABILITIES = [
     cooldown: 8,
     colors: ["#f12e2e", "#df6b6b", "#330202"],
     soundEffects: ["cero1"],
+    imagesOnScreen: ["cero1"],
+    lastImage: "",
+    lastSoundEffect: "",
     volume: 1,
     voiceEffects: [],
     attackerSoundEffects: [],
@@ -533,6 +550,66 @@ const ABILITIES = [
       }
       return false;
     },
+  },
+  {
+    name: "Hollow Purple",
+    key: "3",
+    type: "projectile",
+    shape: "circle",
+    radius: 600,
+    damage: 100,
+    range: 8000,
+    cooldown: 15,
+    speed: 1200,
+    colors: ["#FFEAFF", "#FF66FF", "#FF46FF"],
+    soundEffects: ["HollowPurple"],
+    lastImage: "",
+    lastSoundEffect: "",
+    imagesOnScreen: ["hollowPurple1", "hollowPurple2", "hollowPurple3", "PesceGojo"],
+    volume: 1,
+    voiceEffects: ["hollowPurple1"],
+    attackerSoundEffects: [],
+    effect: (payload, scene, ctx) => {
+      if (ctx && typeof ctx.drawProjectile === "function") {
+        ctx.drawProjectile(payload);
+        return true;
+      }
+      if (scene && typeof scene.drawProjectile === "function") {
+        scene.drawProjectile(payload);
+        return true;
+      }
+      return false;
+    },
+  },
+  {
+    name: "Dismantle",
+    key: "4",
+    type: "projectile",
+    shape: "crescentMoon",
+    radius: 300,
+    damage: 100,
+    range: 1000,
+    cooldown: 12,
+    speed: 4000,
+    colors: ["#000000", "#ff0000"],
+    soundEffects: [],
+    lastImage: "",
+    lastSoundEffect: "",
+    imagesOnScreen: ["dismantle1", "dismantle2", "sukuna1", "sukuna2","sukuna4", "sukuna3"],
+    volume: 0.5,
+    voiceEffects: [],
+    attackerSoundEffects: [],
+    effect: (payload, scene, ctx) => {
+      if (ctx && typeof ctx.drawCrescentMoonProjectile === "function") {
+        ctx.drawCrescentMoonProjectile(payload);
+        return true;
+      }
+      if (scene && typeof scene.drawCrescentMoonProjectile === "function") {
+        scene.drawCrescentMoonProjectile(payload);
+        return true;
+      }
+      return false;
+    }
   },
 ];
 
@@ -572,6 +649,8 @@ export default class BootScene extends Phaser.Scene {
       hp: 100,
       energy: 100,
       points: 0,
+      isDead: false,
+      isRespawning: false,
     };
     this.localPlayerAbilities = new Map();
     this.localAbilityCooldownEnds = new Map();
@@ -580,6 +659,10 @@ export default class BootScene extends Phaser.Scene {
     this.pendingImageLoads = new Set();
     this.audioFileCache = new Map();
     this.imageFileCache = new Map();
+    this.backgroundMusic = null;
+    this.backgroundMusicAudioKey = "backgroundMusic_track";
+    this.backgroundMusicAudioPath = "assets/sounds/backGroundMusic.mp3";
+    this.backgroundMusicVolume = 0.26;
     this.htmlAbilityImageOverlay = null;
     this.hud = null;
   }
@@ -620,6 +703,40 @@ export default class BootScene extends Phaser.Scene {
       this.time.now + cooldownSeconds * 1000,
     );
   }
+
+  playerDead() {
+    this.localPlayerState.isDead = true;
+    this.localPlayerState.isRespawning = true;
+    this.localPlayerState.hp = 0;
+    if (this.player?.body) {
+      this.player.body.setVelocity(0, 0);
+    }
+    if (this.hud) {
+      this.hud.setPlayerDead(true);
+    }
+  }
+
+  playerRespawn(spawnX, spawnY) {
+    this.localPlayerState.isDead = false;
+    this.localPlayerState.isRespawning = false;
+    this.localPlayerState.hp = 100;
+    if (this.hud) {
+      this.hud.setPlayerDead(false);
+    }
+    // Assegna lo spawn locale e azzera la velocita per evitare scivolamenti post-morte.
+    if (this.player) {
+      if (this.player.body && Number.isFinite(spawnX) && Number.isFinite(spawnY)) {
+        this.player.body.reset(spawnX, spawnY);
+        this.player.body.setVelocity(0, 0);
+      } else if (Number.isFinite(spawnX) && Number.isFinite(spawnY)) {
+        this.player.setPosition(spawnX, spawnY);
+      }
+      this.player.setAlpha(1);
+    }
+    this.localSpawnSynced = false;
+  }
+
+
 
   /**
    * Aggiorna la visualizzazione dei cooldown nell'hud (overlay e testo)
@@ -715,7 +832,11 @@ export default class BootScene extends Phaser.Scene {
     if (defaultAbility) return defaultAbility;
 
     const numericIndex = Number.parseInt(normalizedKey, 10);
-    if (Number.isInteger(numericIndex) && numericIndex >= 1 && numericIndex <= ABILITIES.length) {
+    if (
+      Number.isInteger(numericIndex) &&
+      numericIndex >= 1 &&
+      numericIndex <= ABILITIES.length
+    ) {
       return ABILITIES[numericIndex - 1];
     }
 
@@ -951,6 +1072,82 @@ export default class BootScene extends Phaser.Scene {
 
     tryPlayCandidate(0);
   }
+
+  /**
+   * Carica (se necessario) e avvia la musica di background in loop.
+   * Se il browser blocca autoplay, la ripartenza avviene ai successivi input utente.
+   */
+  _startBackgroundMusic() {
+    const audioKey = this.backgroundMusicAudioKey;
+    const audioPath = this.backgroundMusicAudioPath;
+
+    const playLoadedMusic = () => {
+      if (!this.cache.audio.exists(audioKey)) return;
+
+      if (!this.backgroundMusic || this.backgroundMusic.key !== audioKey) {
+        if (this.backgroundMusic) {
+          this.backgroundMusic.destroy();
+        }
+        this.backgroundMusic = this.sound.add(audioKey, {
+          loop: true,
+          volume: this.backgroundMusicVolume,
+        });
+      }
+
+      if (this.backgroundMusic.isPlaying) return;
+
+      try {
+        this.backgroundMusic.play({
+          loop: true,
+          volume: this.backgroundMusicVolume,
+        });
+      } catch (_error) {
+        // Ignora errori di autoplay: il prossimo input ritentera automaticamente.
+      }
+    };
+
+    if (this.cache.audio.exists(audioKey)) {
+      playLoadedMusic();
+      return;
+    }
+
+    if (this.pendingAudioLoads.has(audioPath)) return;
+
+    this.pendingAudioLoads.add(audioPath);
+    this.load.audio(audioKey, audioPath);
+    this.load.once(`filecomplete-audio-${audioKey}`, () => {
+      this.pendingAudioLoads.delete(audioPath);
+      playLoadedMusic();
+    });
+    this.load.once("loaderror", (fileObj) => {
+      if (!fileObj || fileObj.key !== audioKey) return;
+      this.pendingAudioLoads.delete(audioPath);
+    });
+    this.load.start();
+  }
+
+  /**
+   * Collega gli hook necessari ad avviare la musica di background.
+   */
+  _setupBackgroundMusic() {
+    const tryStart = () => this._startBackgroundMusic();
+
+    // Tentativo immediato (su alcuni browser/contesti funziona subito).
+    tryStart();
+
+    // Fallback per policy autoplay: riprova al primo input utente.
+    this.input.once("pointerdown", tryStart);
+    this.input.keyboard.once("keydown", tryStart);
+
+    // Cleanup su shutdown scena.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.backgroundMusic) {
+        this.backgroundMusic.stop();
+        this.backgroundMusic.destroy();
+        this.backgroundMusic = null;
+      }
+    });
+  }
   /**
    * Crea (o restituisce se già esiste) un overlay HTML fissato al body
    * usato per mostrare immagini su schermo (overlay di abilità).
@@ -1069,13 +1266,20 @@ export default class BootScene extends Phaser.Scene {
    */
   _playScreenImageByBaseName(baseName) {
     const candidates = this._abilityNameToAudioCandidates(baseName);
-    console.log("[AbilityImage] candidates from baseName", baseName, candidates);
+    console.log(
+      "[AbilityImage] candidates from baseName",
+      baseName,
+      candidates,
+    );
     if (candidates.length === 0) return;
     const supportedExtensions = ["png", "webp", "jpg", "jpeg"];
 
     const tryCandidate = (idx) => {
       if (idx >= candidates.length) return;
-      const candidate = String(candidates[idx]).replace(/\.(png|webp|jpg|jpeg)$/i, "");
+      const candidate = String(candidates[idx]).replace(
+        /\.(png|webp|jpg|jpeg)$/i,
+        "",
+      );
 
       const tryExt = (extIdx) => {
         if (extIdx >= supportedExtensions.length) {
@@ -1085,7 +1289,12 @@ export default class BootScene extends Phaser.Scene {
 
         const ext = supportedExtensions[extIdx];
         const path = `assets/images/${candidate}.${ext}`;
-        console.log("[AbilityImage] trying path", path, "cached:", this.imageFileCache.has(path));
+        console.log(
+          "[AbilityImage] trying path",
+          path,
+          "cached:",
+          this.imageFileCache.has(path),
+        );
 
         this._preloadImagePath(path).then((loaded) => {
           if (loaded) {
@@ -1111,7 +1320,9 @@ export default class BootScene extends Phaser.Scene {
     const imagesOnScreen = Array.isArray(ability?.imagesOnScreen)
       ? ability.imagesOnScreen
       : [];
-    const selected = this._pickRandomAudioClip(imagesOnScreen);
+    const selected = this._pickRandomAudioClip(imagesOnScreen, {
+      avoidClip: ability?.lastImage,
+    });
     console.log(
       "[AbilityImage] selected clip",
       selected,
@@ -1121,18 +1332,32 @@ export default class BootScene extends Phaser.Scene {
       ability?.name,
     );
     if (!selected) return;
+    if (ability && typeof ability === "object") {
+      ability.lastImage = selected;
+    }
     this._playScreenImageByBaseName(selected);
   }
   /**
    * Ritorna un elemento random valido dall'array `clips` oppure null.
-   * Filtra valori non stringa o stringhe vuote.
+   * Filtra valori non stringa o stringhe vuote e, se possibile,
+   * evita la clip specificata in `options.avoidClip`.
    */
-  _pickRandomAudioClip(clips) {
+  _pickRandomAudioClip(clips, options = {}) {
     if (!Array.isArray(clips) || clips.length === 0) return null;
+    const avoidClip =
+      typeof options?.avoidClip === "string" ? options.avoidClip.trim() : "";
     const validClips = clips.filter(
       (clip) => typeof clip === "string" && clip.trim(),
     );
     if (validClips.length === 0) return null;
+
+    if (avoidClip && validClips.length > 1) {
+      const notRepeated = validClips.filter((clip) => clip.trim() !== avoidClip);
+      if (notRepeated.length > 0) {
+        return Phaser.Utils.Array.GetRandom(notRepeated);
+      }
+    }
+
     return Phaser.Utils.Array.GetRandom(validClips);
   }
   /**
@@ -1182,8 +1407,12 @@ export default class BootScene extends Phaser.Scene {
         ? ability.voiceEffects
         : [];
 
-    const randomSoundClip = this._pickRandomAudioClip(audioClips);
-    const randomVoiceClip = this._pickRandomAudioClip(voiceClips);
+    const randomSoundClip = this._pickRandomAudioClip(audioClips, {
+      avoidClip: ability?.lastSoundEffect,
+    });
+    const randomVoiceClip = this._pickRandomAudioClip(voiceClips, {
+      avoidClip: ability?.lastVoiceEffect,
+    });
 
     const soundVolumeScale = this._resolveAudioVolume(
       ability?.soundVolume ?? ability?.volume,
@@ -1195,12 +1424,18 @@ export default class BootScene extends Phaser.Scene {
     );
 
     if (randomSoundClip) {
+      if (ability && typeof ability === "object") {
+        ability.lastSoundEffect = randomSoundClip;
+      }
       this._playAudioByBaseName(
         randomSoundClip,
         distanceVolume * soundVolumeScale,
       );
     }
     if (randomVoiceClip) {
+      if (ability && typeof ability === "object") {
+        ability.lastVoiceEffect = randomVoiceClip;
+      }
       this._playAudioByBaseName(
         randomVoiceClip,
         distanceVolume * voiceVolumeScale,
@@ -1219,8 +1454,13 @@ export default class BootScene extends Phaser.Scene {
     );
 
     if (isAttacker && attackerAudioClips.length > 0) {
-      const randomAttackerClip = this._pickRandomAudioClip(attackerAudioClips);
+      const randomAttackerClip = this._pickRandomAudioClip(attackerAudioClips, {
+        avoidClip: ability?.lastAttackerSoundEffect,
+      });
       if (randomAttackerClip) {
+        if (ability && typeof ability === "object") {
+          ability.lastAttackerSoundEffect = randomAttackerClip;
+        }
         this._playAudioByBaseName(randomAttackerClip, attackerVolumeScale);
       }
     }
@@ -1365,6 +1605,193 @@ export default class BootScene extends Phaser.Scene {
 
     this._playAbilityFxSounds(effectPayload, ability);
   }
+
+  /**
+   * Renderer generico per effetti projectile.
+   * - `circle`: sfera luminosa con scia (Hollow Purple)
+   * - `crescentMoon`: arco/lama con scia (Dismantle)
+   */
+  _playProjectileFx(effectPayload, ability, forcedShape) {
+    if (!effectPayload) return;
+
+    const startX = Number(effectPayload.x);
+    const startY = Number(effectPayload.y);
+    if (!Number.isFinite(startX) || !Number.isFinite(startY)) return;
+
+    const direction = Number.isFinite(effectPayload.direction)
+      ? effectPayload.direction
+      : 0;
+    const range = Math.max(40, Number(effectPayload.range) || 1200);
+    const speed = Math.max(120, Number(effectPayload.speed) || 1000);
+    const radius = Math.max(12, Number(effectPayload.radius) || 90);
+    const shape = String(
+      forcedShape || effectPayload.shape || ability?.shape || "circle",
+    );
+    const colors = Array.isArray(effectPayload.colors)
+      ? effectPayload.colors
+      : Array.isArray(ability?.colors)
+        ? ability.colors
+        : ["#ffffff", "#cccccc", "#999999"];
+
+    const computedDuration = Number.isFinite(effectPayload.duration)
+      ? Number(effectPayload.duration)
+      : range / speed;
+    const durationMs = Math.max(180, Math.floor(computedDuration * 1000));
+
+    const g = this.add.graphics();
+    g.setDepth(1120);
+
+    const drawAtProgress = (progress) => {
+      if (!g || !g.active) return;
+
+      const p = Phaser.Math.Clamp(progress, 0, 1);
+      const dirX = Math.cos(direction);
+      const dirY = Math.sin(direction);
+      const px = startX + dirX * range * p;
+      const py = startY + dirY * range * p;
+      const fade = 1 - p * 0.35;
+      const pulse = 0.92 + Math.sin(this.time.now * 0.03) * 0.08;
+      const colorPrimary = this._hexColorToNumber(colors[0], 0xffffff);
+      const colorSecondary = this._hexColorToNumber(
+        colors[1] || colors[0],
+        0xffffff,
+      );
+      const colorTertiary = this._hexColorToNumber(
+        colors[2] || colors[1] || colors[0],
+        0xffffff,
+      );
+
+      g.clear();
+
+      // Scia principale morbida lungo la traiettoria.
+      g.lineStyle(Math.max(2, radius * 0.11), colorSecondary, 0.1 * fade);
+      g.beginPath();
+      g.moveTo(startX, startY);
+      g.lineTo(px, py);
+      g.strokePath();
+
+      // Ghost trail per dare un look sfumato al moto del proiettile.
+      const trailCount = 8;
+      const trailSpacing = Math.max(8, radius * 0.24);
+      for (let i = trailCount; i >= 1; i--) {
+        const t = i / trailCount;
+        const tx = px - dirX * trailSpacing * i;
+        const ty = py - dirY * trailSpacing * i;
+        const a = (0.22 * (1 - t) + 0.04) * fade;
+
+        if (shape === "crescentMoon") {
+          const ghostRadius = Math.max(9, radius * 0.34 * (0.86 + 0.14 * t));
+          const ghostWidth = Math.max(2, radius * 0.085 * (0.9 + 0.1 * t));
+          const ghostSpread = Phaser.Math.DegToRad(126);
+          g.lineStyle(ghostWidth, colorSecondary, a);
+          g.beginPath();
+          g.arc(
+            tx,
+            ty,
+            ghostRadius,
+            direction - ghostSpread * 0.5,
+            direction + ghostSpread * 0.5,
+            false,
+          );
+          g.strokePath();
+        } else {
+          const ghostRadius = Math.max(8, radius * 0.19 * (0.84 + 0.16 * t));
+          g.fillStyle(colorSecondary, a);
+          g.fillCircle(tx, ty, ghostRadius * 1.2);
+        }
+      }
+
+      if (shape === "crescentMoon") {
+        const arcRadius = Math.max(12, radius * 0.42 * pulse);
+        const arcWidth = Math.max(6, radius * 0.16);
+        const spread = Phaser.Math.DegToRad(128);
+
+        // Glow esterno (sfumato).
+        g.lineStyle(arcWidth * 1.9, colorTertiary, 0.18 * fade);
+        g.beginPath();
+        g.arc(
+          px,
+          py,
+          arcRadius,
+          direction - spread * 0.5,
+          direction + spread * 0.5,
+          false,
+        );
+        g.strokePath();
+
+        // Arco principale.
+        g.lineStyle(arcWidth, colorPrimary, 0.9 * fade);
+        g.beginPath();
+        g.arc(
+          px,
+          py,
+          arcRadius,
+          direction - spread * 0.5,
+          direction + spread * 0.5,
+          false,
+        );
+        g.strokePath();
+
+        // Arco interno: spostato in avanti lungo la direzione (non perpendicolare),
+        // cosi la mezzaluna resta allineata tra parte alta e bassa.
+        const innerOffset = arcRadius * 0.14;
+        const innerX = px + dirX * innerOffset;
+        const innerY = py + dirY * innerOffset;
+        g.lineStyle(Math.max(2, arcWidth * 0.65), colorSecondary, 0.82 * fade);
+        g.beginPath();
+        g.arc(
+          innerX,
+          innerY,
+          arcRadius * 0.72,
+          direction - spread * 0.5,
+          direction + spread * 0.5,
+          false,
+        );
+        g.strokePath();
+      } else {
+        const orbRadius = Math.max(12, radius * 0.26 * pulse);
+
+        // Halo esterno + core: effetto piu morbido/sfumato.
+        g.fillStyle(colorTertiary, 0.12 * fade);
+        g.fillCircle(px, py, orbRadius * 2.35);
+        g.fillStyle(colorSecondary, 0.24 * fade);
+        g.fillCircle(px, py, orbRadius * 1.7);
+        g.fillStyle(colorPrimary, 0.92 * fade);
+        g.fillCircle(px, py, orbRadius);
+      }
+    };
+
+    drawAtProgress(0);
+    this._playAbilityFxSounds(effectPayload, ability);
+
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: durationMs,
+      ease: "Linear",
+      onUpdate: (tween) => {
+        drawAtProgress(tween.getValue());
+      },
+      onComplete: () => {
+        if (g && g.active) g.destroy();
+      },
+    });
+  }
+
+  /**
+   * Disegna projectile a forma circolare (Hollow Purple).
+   */
+  drawProjectile(effectPayload, ability) {
+    this._playProjectileFx(effectPayload, ability, "circle");
+  }
+
+  /**
+   * Disegna projectile a mezzaluna (Dismantle).
+   */
+  drawCrescentMoonProjectile(effectPayload, ability) {
+    this._playProjectileFx(effectPayload, ability, "crescentMoon");
+  }
+
   /**
    * Risolve l'oggetto abilità (client-side) corrispondente a un
    * `effectPayload` ricevuto dal server. Effettua merge tra
@@ -1410,6 +1837,9 @@ export default class BootScene extends Phaser.Scene {
       const handledByCustomEffect = ability.effect(effectPayload, this, {
         drawRay: (payload) => this.drawRay(payload, ability),
         drawBlast: (payload) => this.drawBlast(payload, ability),
+        drawProjectile: (payload) => this.drawProjectile(payload, ability),
+        drawCrescentMoonProjectile: (payload) =>
+          this.drawCrescentMoonProjectile(payload, ability),
         playSounds: (payload) => this._playAbilityFxSounds(payload, ability),
       });
       if (handledByCustomEffect === true) {
@@ -1424,14 +1854,24 @@ export default class BootScene extends Phaser.Scene {
 
     if (effectPayload.type === "blast") {
       this.drawBlast(effectPayload, ability);
+      return;
+    }
+
+    if (effectPayload.type === "projectile") {
+      const shape = String(effectPayload.shape || ability?.shape || "circle");
+      if (shape === "crescentMoon") {
+        this.drawCrescentMoonProjectile(effectPayload, ability);
+        return;
+      }
+      this.drawProjectile(effectPayload, ability);
     }
   }
 
-    /**
-     * Disegna una barra UI su `graphics` (usata per hp/energy).
-     * Parametri: graphics, x, y, width, height, ratio [0..1], fillColor.
-     */
-    drawBar(graphics, x, y, width, height, ratio, fillColor) {
+  /**
+   * Disegna una barra UI su `graphics` (usata per hp/energy).
+   * Parametri: graphics, x, y, width, height, ratio [0..1], fillColor.
+   */
+  drawBar(graphics, x, y, width, height, ratio, fillColor) {
     const safeRatio = Math.max(0, Math.min(1, ratio));
     graphics.clear();
     graphics.fillStyle(0x0f1115, 0.82);
@@ -1455,9 +1895,7 @@ export default class BootScene extends Phaser.Scene {
    * - `ratio`: valore [0..1] di riempimento
    * - `fillColor`: colore della parte piena
    */
-  
-  
-  
+
   tryAttachAbilityIcon(abilityName, iconSprite) {
     if (!abilityName || !iconSprite) return;
     const safeBaseName = String(abilityName)
@@ -1490,7 +1928,6 @@ export default class BootScene extends Phaser.Scene {
    * se non è già presente nella cache delle textures.
    */
 
-  
   createGameHud(currentGame) {
     const width = this.scale.width;
     const height = this.scale.height;
@@ -1996,6 +2433,10 @@ export default class BootScene extends Phaser.Scene {
     ]);
     // Le abilita restano server-side: inviamo solo key + stato premuto/rilasciato.
     this.input.keyboard.on("keydown", (event) => {
+      if (this.localPlayerState?.isDead || this.localPlayerState?.isRespawning) {
+        return;
+      }
+
       const key =
         abilityKeyByCode[event.code] || String(event.key || "").toUpperCase();
       if (!abilityKeys.includes(key)) return;
@@ -2072,6 +2513,8 @@ export default class BootScene extends Phaser.Scene {
     this.positionText.setScrollFactor(0); // non segue la camera
     this.positionText.setDepth(1000); // sopra agli altri elementi
 
+    this._setupBackgroundMusic();
+
     this.createGameHud(currentGame);
   }
 
@@ -2084,7 +2527,7 @@ export default class BootScene extends Phaser.Scene {
     if (!Array.isArray(playersPayload)) return;
     if (!this.scene?.isActive()) return;
 
-  // single definition continues below
+    // single definition continues below
 
     const seenPlayers = new Set();
 
@@ -2093,27 +2536,69 @@ export default class BootScene extends Phaser.Scene {
       seenPlayers.add(playerData.userId);
 
       if (playerData.userId === this.localUserId) {
+        const previousState = this.localPlayerState || {};
+        const hpValue = Number(playerData?.hp);
+        const energyValue = Number(playerData?.energy);
+        const pointsValue = Number(playerData?.points);
+        const domainPointsValue = Number(playerData?.attributes?.domainPoints);
+        const isRespawning = Boolean(playerData?.attributes?.isRespawning);
+        const isDead =
+          Boolean(playerData?.attributes?.isDead) ||
+          (Number.isFinite(hpValue) && hpValue <= 0);
+
         this.localPlayerState = {
-          hp: Number.isFinite(playerData.hp)
-            ? playerData.hp
+          hp: Number.isFinite(hpValue)
+            ? hpValue
             : this.localPlayerState.hp,
-          energy: Number.isFinite(playerData.energy)
-            ? playerData.energy
+          energy: Number.isFinite(energyValue)
+            ? energyValue
             : this.localPlayerState.energy,
-          points: Number.isFinite(playerData.points)
-            ? playerData.points
-            : Number.isFinite(playerData?.attributes?.domainPoints)
-              ? playerData.attributes.domainPoints
+          points: Number.isFinite(pointsValue)
+            ? pointsValue
+            : Number.isFinite(domainPointsValue)
+              ? domainPointsValue
               : this.localPlayerState.points,
+          isDead,
+          isRespawning,
         };
-        if (!this.localSpawnSynced && this.player) {
-          if (this.player?.body) {
-            this.player.body.reset(playerData.x, playerData.y);
-          } else {
-            this.player.setPosition(playerData.x, playerData.y);
+
+        if (this.player) {
+          const serverX = Number(playerData.x);
+          const serverY = Number(playerData.y);
+          const justFinishedRespawn =
+            Boolean(previousState.isRespawning) && !isRespawning;
+          const hasServerPosition =
+            Number.isFinite(serverX) && Number.isFinite(serverY);
+
+          const distanceFromServer =
+            hasServerPosition && this.player?.active
+              ? Phaser.Math.Distance.Between(
+                  this.player.x,
+                  this.player.y,
+                  serverX,
+                  serverY,
+                )
+              : 0;
+
+          const mustHardSync =
+            !this.localSpawnSynced ||
+            isRespawning ||
+            justFinishedRespawn ||
+            distanceFromServer > 120;
+
+          if (hasServerPosition && mustHardSync) {
+            if (this.player?.body) {
+              this.player.body.reset(serverX, serverY);
+              this.player.body.setVelocity(0, 0);
+            } else {
+              this.player.setPosition(serverX, serverY);
+            }
+            this.localSpawnSynced = true;
           }
-          this.localSpawnSynced = true;
+
+          this.player.setAlpha(isDead || isRespawning ? 0.45 : 1);
         }
+
         if (this.player?.active && typeof playerData.direction === "number") {
           this.player.rotation = playerData.direction;
         }
@@ -2157,11 +2642,18 @@ export default class BootScene extends Phaser.Scene {
 
     let dirX = 0;
     let dirY = 0;
+    const localHp = Number(this.localPlayerState?.hp);
+    const isLocalDead =
+      Boolean(this.localPlayerState?.isDead) ||
+      Boolean(this.localPlayerState?.isRespawning) ||
+      (Number.isFinite(localHp) && localHp <= 0);
 
-    if (this.keys.left?.isDown || this.keys.leftArrow?.isDown) dirX -= 1;
-    if (this.keys.right?.isDown || this.keys.rightArrow?.isDown) dirX += 1;
-    if (this.keys.up?.isDown || this.keys.upArrow?.isDown) dirY -= 1;
-    if (this.keys.down?.isDown || this.keys.downArrow?.isDown) dirY += 1;
+    if (!isLocalDead) {
+      if (this.keys.left?.isDown || this.keys.leftArrow?.isDown) dirX -= 1;
+      if (this.keys.right?.isDown || this.keys.rightArrow?.isDown) dirX += 1;
+      if (this.keys.up?.isDown || this.keys.upArrow?.isDown) dirY -= 1;
+      if (this.keys.down?.isDown || this.keys.downArrow?.isDown) dirY += 1;
+    }
 
     if (dirX !== 0 || dirY !== 0) {
       const length = Math.hypot(dirX, dirY);
@@ -2204,7 +2696,11 @@ export default class BootScene extends Phaser.Scene {
       const rotatedEnough = angleDelta >= threshold;
       const timeElapsed = _time - this.lastTransformSentAt >= 50;
 
-      if (hasActiveMatch && (movedEnough || rotatedEnough || timeElapsed)) {
+      if (
+        !isLocalDead &&
+        hasActiveMatch &&
+        (movedEnough || rotatedEnough || timeElapsed)
+      ) {
         this.lastSentDirection = angle;
         this.lastSentX = this.player.x;
         this.lastSentY = this.player.y;

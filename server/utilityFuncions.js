@@ -362,6 +362,14 @@ export const utility = {
         return;
       }
 
+      if (
+        gamePlayer.hp <= 0 ||
+        gamePlayer.attributes?.isDead ||
+        gamePlayer.attributes?.isRespawning
+      ) {
+        return;
+      }
+
       if (!payload || typeof payload !== "object") {
         return;
       }
@@ -419,6 +427,13 @@ export const utility = {
       }
       const gamePlayer = room.game.players.get(user.userId);
       if (!gamePlayer) {
+        return;
+      }
+      if (
+        gamePlayer.hp <= 0 ||
+        gamePlayer.attributes?.isDead ||
+        gamePlayer.attributes?.isRespawning
+      ) {
         return;
       }
       if (typeof direction === "number" && Number.isFinite(direction)) {

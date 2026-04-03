@@ -205,7 +205,7 @@ io.on("connection", (socket) => {
   });
 });
 
-export function getScoket(userId) {
+export function getSocket(userId) {
   if (!users.has(userId)) {
     return null;
   }

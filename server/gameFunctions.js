@@ -1,10 +1,11 @@
 import { re } from "mathjs";
-import { getScoket } from "./server.js";
+import { getSocket } from "./server.js";
 
 const WORLD_WIDTH = 7680;
 const WORLD_HEIGHT = 4320;
 const PLAYER_SPEED = 320;
 const MOVE_SMOOTHNESS = 18;
+const RESPAWN_DELAY_MS = 3000;
 const test = true;
 const validAbilityKeys = new Set([
   "1",
@@ -21,50 +22,53 @@ const validAbilityKeys = new Set([
   "E",
 ]);
 
-const DEFAULT_ABILITYES =[{
-  name: "dash",
-  key: "Q",
-  cooldown: 3,
-  duration: 0.3,
-  activeCooldown: false,
-  effect: (player) => {
-    if (!player?.attributes) return null;
-    player.attributes.invulnerable = true;
-    player.attributes.speedPercentage = 2.5;
-    setTimeout(() => {
-      if (!player?.attributes) return;
-      player.attributes.invulnerable = false;
-      player.attributes.speedPercentage = 1;
-    }, 300);
-    return {
-      abilityKey: "Q",
-      abilityName: "dash",
-      type: "dash",
-      x: player.x,
-      y: player.y,
-      direction: Number.isFinite(player.direction) ? player.direction : 0,
-      duration: 0.3,
-      ownerId: player.userId,
-      hearDistance: 800,
-    };
+const DEFAULT_ABILITYES = [
+  {
+    name: "dash",
+    key: "Q",
+    cooldown: 3,
+    duration: 0.3,
+    activeCooldown: false,
+    effect: (player) => {
+      if (!player?.attributes) return null;
+      player.attributes.invulnerable = true;
+      player.attributes.speedPercentage = 2.5;
+      setTimeout(() => {
+        if (!player?.attributes) return;
+        player.attributes.invulnerable = false;
+        player.attributes.speedPercentage = 1;
+      }, 300);
+      return {
+        abilityKey: "Q",
+        abilityName: "dash",
+        type: "dash",
+        x: player.x,
+        y: player.y,
+        direction: Number.isFinite(player.direction) ? player.direction : 0,
+        duration: 0.3,
+        ownerId: player.userId,
+        hearDistance: 800,
+      };
+    },
   },
-}]
+];
 
-const ABILITIES = [{
-  name: "Granitè blast",
-  key: "1",
-  type: "ray",
-  radius: 50,
-  damage: 100,
-  range: 4000,
-  cooldown: 10,
-  duration: 0.4,
-  colors: ["#D5F2F8", "#61EBF5", "#4AFAFA"],
-  effect: (player, room, ctx) => {
-    return ctx.helpers.applyRayCapsuleAbility(player, room, ctx.ability);
+const ABILITIES = [
+  {
+    name: "Granitè blast",
+    key: "1",
+    type: "ray",
+    radius: 50,
+    damage: 100,
+    range: 4000,
+    cooldown: 10,
+    duration: 0.4,
+    colors: ["#D5F2F8", "#61EBF5", "#4AFAFA"],
+    effect: (player, room, ctx) => {
+      return ctx.helpers.applyRayCapsuleAbility(player, room, ctx.ability);
+    },
   },
-  
-},   {
+  {
     name: "Cero",
     key: "2",
     type: "ray",
@@ -74,10 +78,47 @@ const ABILITIES = [{
     cooldown: 8,
     duration: 1,
     colors: ["#f12e2e", "#df6b6b", "#330202"],
-  effect: (player, room, ctx) => {
-    return ctx.helpers.applyRayCapsuleAbility(player, room, ctx.ability);
+    effect: (player, room, ctx) => {
+      return ctx.helpers.applyRayCapsuleAbility(player, room, ctx.ability);
+    },
   },
-  },]
+   {
+    name: "Hollow Purple",
+    key: "3",
+    type: "projectile",
+    shape: "circle",
+    radius: 600,
+    damage: 100,
+    range: 8000,
+    cooldown: 15,
+    speed: 1200,
+    colors: ["#FFEAFF", "#FF66FF", "#FF46FF"],
+    effect: (player, room, ctx) => {
+      return ctx.helpers.applyProjectileAbility(player, room, {
+        ...ctx.ability,
+        shape: "circle",
+      });
+    },
+  },
+  {
+    name: "Dismantle",
+    key: "4",
+    type: "projectile",
+    shape: "crescentMoon",
+    radius: 300,
+    damage: 100,
+    range: 1000,
+    cooldown: 12,
+    speed: 4000,
+    colors: ["#000000", "#ff0000"],
+    effect: (player, room, ctx) => {
+      return ctx.helpers.applyProjectileAbility(player, room, {
+        ...ctx.ability,
+        shape: "crescentMoon",
+      });
+    },
+  },
+];
 
 function createSeededRandom(seedValue) {
   let seed = 0;
@@ -180,6 +221,77 @@ function createAbilityInstance(ability) {
   };
 }
 
+function schedulePlayerRespawn(player, room, delayMs = RESPAWN_DELAY_MS) {
+  if (!player || !room?.game) return;
+  if (player._respawnTimer || player?.attributes?.isRespawning) return;
+
+  if (!player.attributes || typeof player.attributes !== "object") {
+    player.attributes = {};
+  }
+
+  player.hp = 0;
+  player.attributes.isDead = true;
+  player.attributes.isRespawning = true;
+  player.attributes.invulnerable = true;
+  player.attributes.dazed = false;
+  player.attributes.holding = null;
+  player.attributes.speedPercentage = 0;
+
+  // In modalita non-test consumiamo una vita per il respawn.
+  if (!test) {
+    const currentLives = Number.isFinite(player.lives) ? player.lives : 1;
+    player.lives = Math.max(0, currentLives - 1);
+    if (player.lives <= 0) {
+      player.attributes.isRespawning = false;
+      return;
+    }
+  }
+  const socket = getSocket(player.userId);
+  if (socket) {
+    socket.emit("020");
+  }
+  player._respawnTimer = setTimeout(() => {
+    player._respawnTimer = null;
+
+    // Se il player non e piu nella room, interrompi il respawn.
+    if (!room?.game?.players?.has(player.userId)) return;
+
+    const spawn = randomSpawnPosition();
+    const worldWidth = Number(room?.game?.worldWidth || WORLD_WIDTH);
+    const worldHeight = Number(room?.game?.worldHeight || WORLD_HEIGHT);
+
+    player.x = Math.max(0, Math.min(worldWidth, spawn.x));
+    player.y = Math.max(0, Math.min(worldHeight, spawn.y));
+    player.direction = Number.isFinite(player.direction) ? player.direction : 0;
+    player.hp = 100;
+    player.energy = 100;
+
+    if (!player.attributes || typeof player.attributes !== "object") {
+      player.attributes = {};
+    }
+
+    player.attributes.isHit = false;
+    player.attributes.hitCooldown = Date.now();
+    player.attributes.holding = null;
+    player.attributes.invulnerable = true;
+    player.attributes.dazed = false;
+    player.attributes.isDead = false;
+    player.attributes.isRespawning = false;
+    player.attributes.speedPercentage = 1;
+
+    //manda al player tramite il suo socket il messaggio 021 che indica che è morto, e il suo punto di respawn
+    if (socket) {
+      socket.emit("021", player.x, player.y);
+    }
+    // Breve protezione spawn.
+    setTimeout(() => {
+      if (!player?.attributes) return;
+      if (player.attributes.isRespawning) return;
+      player.attributes.invulnerable = false;
+    }, 700);
+  }, Math.max(0, delayMs));
+}
+
 function distancePointToSegment(px, py, ax, ay, bx, by) {
   const abx = bx - ax;
   const aby = by - ay;
@@ -210,6 +322,7 @@ function computeCapsuleRayHits(shooter, room, ability) {
   room.game.players.forEach((target) => {
     if (!target || target.userId === shooter.userId) return;
     if (target.attributes?.invulnerable) return;
+    if (target.hp <= 0 || target.attributes?.isRespawning) return;
 
     const distToCenterLine = distancePointToSegment(
       target.x,
@@ -251,6 +364,11 @@ function applyRayCapsuleAbility(player, room, ability) {
   const { hits, effect } = computeCapsuleRayHits(player, room, ability);
   hits.forEach(({ target, damage, knockback }) => {
     target.hp = Math.max(0, target.hp - damage);
+    if (target.hp <= 0) {
+      schedulePlayerRespawn(target, room, RESPAWN_DELAY_MS);
+      return;
+    }
+
     target.attributes.isHit = true;
     target.attributes.hitCooldown = Date.now();
     target.attributes.dazed = true;
@@ -268,7 +386,109 @@ function applyRayCapsuleAbility(player, room, ability) {
   return effect;
 }
 
-function executeAbilityServerEffect(player, room, ability, io) {
+function computeProjectileHits(shooter, room, ability) {
+  if (!shooter || !room || !room.game || !room.game.players) {
+    return { hits: [], effect: null };
+  }
+
+  const dir = Number.isFinite(shooter.direction) ? shooter.direction : 0;
+  const startX = shooter.x;
+  const startY = shooter.y;
+  const range = Math.max(60, Number(ability?.range) || 1600);
+  const speed = Math.max(120, Number(ability?.speed) || 1000);
+  const radius = Math.max(10, Number(ability?.radius) || 90);
+  const shape =
+    typeof ability?.shape === "string" && ability.shape
+      ? ability.shape
+      : "circle";
+  const endX = startX + Math.cos(dir) * range;
+  const endY = startY + Math.sin(dir) * range;
+
+  const travelSeconds = range / speed;
+  const duration = Math.max(0.2, Math.min(4, travelSeconds));
+  const targetRadius = 18;
+
+  const projectileRadiusScale = shape === "crescentMoon" ? 0.22 : 0.45;
+  const projectileRadius = Math.max(14, radius * projectileRadiusScale);
+  const baseDamage = Math.max(1, Number(ability?.damage) || 100);
+  const hits = [];
+
+  room.game.players.forEach((target) => {
+    if (!target || target.userId === shooter.userId) return;
+    if (target.attributes?.invulnerable) return;
+    if (target.hp <= 0 || target.attributes?.isRespawning) return;
+
+    const distToPath = distancePointToSegment(
+      target.x,
+      target.y,
+      startX,
+      startY,
+      endX,
+      endY,
+    );
+    const edgeDistance = Math.max(0, distToPath - targetRadius);
+    if (edgeDistance > projectileRadius) return;
+
+    const closeness = 1 - edgeDistance / projectileRadius;
+    const damageFloor = shape === "crescentMoon" ? 0.55 : 0.45;
+    const damage = Math.round(
+      baseDamage * (damageFloor + (1 - damageFloor) * closeness),
+    );
+    const knockbackBase = shape === "crescentMoon" ? 220 : 360;
+    const knockback = knockbackBase + closeness * 260;
+    hits.push({ target, damage, knockback });
+  });
+
+  return {
+    hits,
+    effect: {
+      abilityKey: ability?.key || null,
+      abilityName: ability?.name || "",
+      type: "projectile",
+      shape,
+      x: startX,
+      y: startY,
+      direction: dir,
+      range,
+      radius,
+      speed,
+      duration,
+      colors: Array.isArray(ability?.colors) ? ability.colors : undefined,
+      ownerId: shooter.userId,
+      hearDistance: Math.max(range * 1.15, 900),
+    },
+  };
+}
+
+function applyProjectileAbility(player, room, ability) {
+  const { hits, effect } = computeProjectileHits(player, room, ability);
+  if (!effect) return null;
+
+  hits.forEach(({ target, damage, knockback }) => {
+    target.hp = Math.max(0, target.hp - damage);
+    if (target.hp <= 0) {
+      schedulePlayerRespawn(target, room, RESPAWN_DELAY_MS);
+      return;
+    }
+
+    target.attributes.isHit = true;
+    target.attributes.hitCooldown = Date.now();
+    target.attributes.dazed = true;
+    setTimeout(() => {
+      if (!target?.attributes) return;
+      target.attributes.dazed = false;
+    }, 120);
+
+    const pushX = Math.cos(effect.direction) * knockback;
+    const pushY = Math.sin(effect.direction) * knockback;
+    target.x = Math.max(0, Math.min(room.game.worldWidth, target.x + pushX));
+    target.y = Math.max(0, Math.min(room.game.worldHeight, target.y + pushY));
+  });
+
+  return effect;
+}
+
+function executeAbilityServerEffect(player, room, ability, io, abilityKey) {
   if (!ability || !player || !room) return null;
 
   const customEffect =
@@ -292,9 +512,21 @@ function executeAbilityServerEffect(player, room, ability, io) {
     helpers: {
       applyRayCapsuleAbility,
       computeCapsuleRayHits,
+      applyProjectileAbility,
+      computeProjectileHits,
     },
   });
-  return payload && typeof payload === "object" ? payload : null;
+  if (!payload || typeof payload !== "object") return null;
+
+  const normalizedAbilityKey = String(abilityKey || "").toUpperCase();
+  if (!payload.abilityKey && normalizedAbilityKey) {
+    payload.abilityKey = normalizedAbilityKey;
+  }
+  if (!payload.abilityName && ability?.name) {
+    payload.abilityName = ability.name;
+  }
+
+  return payload;
 }
 
 function getUserRoomFromRooms(userId, rooms) {
@@ -314,16 +546,23 @@ function playerWantToUseAbility(userId, index, rooms, io) {
   if (!room || !room.game) return null;
   const player = room.game.players.get(userId);
   if (!player) return null;
+  if (player.hp <= 0 || player.attributes?.isRespawning || player.attributes?.isDead) {
+    return null;
+  }
 
   const abilityKey = String(index).toUpperCase();
   if (!player.abilities.has(abilityKey)) {
-    console.log(`Player ${userId} does not have ability with index ${abilityKey}`);
+    console.log(
+      `Player ${userId} does not have ability with index ${abilityKey}`,
+    );
     return null;
   }
 
   const ability = player.abilities.get(abilityKey);
   if (ability.activeCooldown) {
-    console.log(`Player ${userId} tried to use ability ${abilityKey} but it's on cooldown`);
+    console.log(
+      `Player ${userId} tried to use ability ${abilityKey} but it's on cooldown`,
+    );
     return null;
   }
 
@@ -340,7 +579,13 @@ function playerWantToUseAbility(userId, index, rooms, io) {
 
   console.log(`Player ${userId} is using ability ${abilityKey}`);
 
-  const effectPayload = executeAbilityServerEffect(player, room, ability, io);
+  const effectPayload = executeAbilityServerEffect(
+    player,
+    room,
+    ability,
+    io,
+    abilityKey,
+  );
   if (effectPayload && io) {
     io.to(room.roomId).emit("018", effectPayload);
   }
@@ -408,6 +653,8 @@ function startGame(io, roomId, rooms) {
         holding: null,
         invulnerable: false,
         dazed: false,
+        isDead: false,
+        isRespawning: false,
         speedPercentage: 1,
         domainPoints: 0,
         energyRegenPercentage: 1,
@@ -416,16 +663,19 @@ function startGame(io, roomId, rooms) {
       activeAbilities: [],
     });
 
-    room.game.players.get(key).abilities.set("Q", createAbilityInstance(DEFAULT_ABILITYES[0]));
+    room.game.players
+      .get(key)
+      .abilities.set("Q", createAbilityInstance(DEFAULT_ABILITYES[0]));
     let abilitiesIndex = ["Q"];
     if (test) {
       ABILITIES.forEach((ability, index) => {
         const abilityKey = String(index + 1);
-        room.game.players.get(key).abilities.set(abilityKey, createAbilityInstance(ability));
+        room.game.players
+          .get(key)
+          .abilities.set(abilityKey, createAbilityInstance(ability));
         abilitiesIndex.push(abilityKey);
       });
-    } else 
-    {
+    } else {
       //nAbilities random per ogni giocatore tra quelle disponibili, per ora assegno sempre le stesse
       /*const availableAbilities = [...ABILITIES];
       for (let i = 0; i < room.game.nAbilities; i++) {
@@ -437,19 +687,24 @@ function startGame(io, roomId, rooms) {
         abilitiesIndex.push(abilityKey);
       }*/
     }
-    //manda le abilità di ogni player a ogni user con il suo socket 
-    //prendi il socket id dallo user da users 
-    const socket = getScoket(value.userId);
+    //manda le abilità di ogni player a ogni user con il suo socket
+    //prendi il socket id dallo user da users
+    const socket = getSocket(value.userId);
     if (socket) {
       socket.emit("019", abilitiesIndex);
     }
-
   });
   io.to(roomId).emit("014", roomId);
   io.to(roomId).emit("015", toClientGame(room.game));
   room.game.players.forEach((player) => {
-    console.log(`Player ${player.userId} - ${player.userName} spawned at (${player.x}, ${player.y}) with HP: ${player.hp} and Energy: ${player.energy}`);
-    console.log(`Abilities: ${Array.from(player.abilities.entries()).map(([key, ability]) => `${key}: ${ability.name}`).join(", ")}`);
+    console.log(
+      `Player ${player.userId} - ${player.userName} spawned at (${player.x}, ${player.y}) with HP: ${player.hp} and Energy: ${player.energy}`,
+    );
+    console.log(
+      `Abilities: ${Array.from(player.abilities.entries())
+        .map(([key, ability]) => `${key}: ${ability.name}`)
+        .join(", ")}`,
+    );
     console.log(`Attributes: ${JSON.stringify(player.attributes)}`);
   });
   room.gameInterval = setInterval(() => {
@@ -492,7 +747,8 @@ function startGame(io, roomId, rooms) {
       });
     });
 
-    io.volatile.to(roomId).emit("016", playersPayload);
+    // Non volatile: evitare perdita di tick critici come morte/respawn.
+    io.to(roomId).emit("016", playersPayload);
   }, 1000 / 60);
 }
 

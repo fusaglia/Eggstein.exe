@@ -230,6 +230,14 @@ export const mainObjects = {
     console.log("[AbilityImage] playAbilityFx bridge", effectPayload);
     gameScene.playAbilityFx(effectPayload);
   },
+  playerDead: function () {
+    const gameScene = game?.scene?.getScene("BootScene");
+    gameScene?.playerDead();
+  },
+  playerRespawn: function (spawnX, spawnY) {
+    const gameScene = game?.scene?.getScene("BootScene");
+    gameScene?.playerRespawn(spawnX, spawnY);
+  }
 
 };
 
