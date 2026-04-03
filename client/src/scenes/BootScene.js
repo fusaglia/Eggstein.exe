@@ -25,6 +25,8 @@
 import { socketFuncions } from "../WebSocketClient.js";
 import { gameState } from "../gameState.js";
 
+const abilityKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q"];
+
 const ROCK_TYPES = {
   granite: {
     textureKey: "rock_granite",
@@ -56,10 +58,9 @@ const ROCK_TYPES = {
         { x: 95, y: 53 },
         { x: 77, y: 71 },
         { x: 37, y: 76 },
-        { x: 50, y: 45 },   
-        { x: 66, y: 31 },       
+        { x: 50, y: 45 },
+        { x: 66, y: 31 },
         { x: 62, y: 17 },
-         
       ];
 
       g.fillStyle(0x555961, 1);
@@ -150,7 +151,6 @@ const ROCK_TYPES = {
         { x: 58, y: 92 },
         { x: 50, y: 52 },
         { x: 64, y: 33 },
-        
       ];
 
       g.fillStyle(0x8e603e, 1);
@@ -173,7 +173,7 @@ const ROCK_TYPES = {
       g.fillCircle(43, 79, 3);
       g.fillCircle(67, 74, 2);
       g.fillCircle(76, 58, 3);
-        
+
       g.lineStyle(1.4, 0x5b3420, 0.82);
       g.beginPath();
       g.moveTo(42, 16);
@@ -238,7 +238,7 @@ const ROCK_TYPES = {
         { x: 8, y: 52 },
         { x: 2, y: 32 },
         { x: 20, y: 12 },
-        
+
         { x: 52, y: 4 },
         { x: 50, y: 8 },
         { x: 31, y: 13 },
@@ -246,7 +246,6 @@ const ROCK_TYPES = {
         { x: 23, y: 42 },
         { x: 60, y: 46 },
         { x: 32, y: 61 },
-        
       ];
 
       g.fillStyle(0x1f1f28, 1);
@@ -390,6 +389,38 @@ const BUSH_TYPES = {
 };
 
 // ─────────────────────────────────────────────
+const DEFAULT_ABILITYES = [
+  {
+    name: "Dash",
+    key: "Q",
+    cooldown: 3,
+    duration: 0.3,
+    effect: (_payload, scene) => {
+      if (!scene?.player) return;
+      scene.player.speedPercentage = 2.5;
+      setTimeout(() => {
+        if (scene?.player) scene.player.speedPercentage = 1;
+      }, 300);
+    },
+  },
+];
+
+const ABILITIES = [
+  {
+    name: "Granitè blast",
+    type: "ray",
+    radius: 100,
+    damage: 100,
+    range: 2000,
+    cooldown: 10,
+    colors: ["#D5F2F8", "#61EBF5", "#4AFAFA"],
+    effect: (player, room) => {
+      
+    }
+  },
+];
+
+// ─────────────────────────────────────────────
 //  SCENE
 // ─────────────────────────────────────────────
 
@@ -401,6 +432,562 @@ export default class BootScene extends Phaser.Scene {
     this.playerSpeed = 320;
     this.remotePlayers = new Map();
     this.localUserId = localStorage.getItem("userId");
+    this.lastSentDirection = null;
+    this.lastSentX = null;
+    this.lastSentY = null;
+    this.lastTransformSentAt = 0;
+    this.localSpawnSynced = false;
+    this.localPlayerState = {
+      hp: 100,
+      energy: 100,
+      points: 0,
+    };
+    this.localPlayerAbilities = new Map();
+    this.pendingAudioLoads = new Set();
+    this.hud = null;
+  }
+
+  getHotbarAbilities(currentGame) {
+    const defaultAbilityKeys = new Set(
+      DEFAULT_ABILITYES
+        .map((ability) => String(ability?.key || "").toUpperCase())
+        .filter(Boolean),
+    );
+
+    const requestedCount =
+      currentGame.abilities?.length ||
+      currentGame.nAbilities ||
+      currentGame.abilityList?.length ||
+      0;
+    const nAbilities = Number.isFinite(requestedCount)
+      ? Math.max(1, Math.min(10, Math.floor(requestedCount)))
+      : 4;
+
+    const sourceAbilities =
+      (Array.isArray(currentGame?.abilities) && currentGame.abilities) ||
+      (Array.isArray(currentGame?.abilityList) && currentGame.abilityList) ||
+      [];
+
+    const visibleSourceAbilities = sourceAbilities.filter((ability, index) => {
+      const explicitKey = ability?.key
+        ? String(ability.key).toUpperCase()
+        : String(index + 1);
+      return !defaultAbilityKeys.has(explicitKey);
+    });
+
+    const abilities = [];
+    for (let i = 0; i < nAbilities; i++) {
+      const source = visibleSourceAbilities[i];
+      const sourceName =
+        typeof source === "string"
+          ? source
+          : typeof source?.name === "string"
+            ? source.name
+            : null;
+      abilities.push({
+        name: sourceName || `Abilita ${i + 1}`,
+      });
+    }
+    return abilities;
+  }
+
+  _buildKeyedAbilityMap(currentGame) {
+    const keyedAbilities = new Map();
+
+    DEFAULT_ABILITYES.forEach((ability) => {
+      if (ability?.key) {
+        keyedAbilities.set(String(ability.key).toUpperCase(), ability);
+      }
+    });
+
+    const gameAbilities = Array.isArray(currentGame?.abilities)
+      ? currentGame.abilities
+      : [];
+    gameAbilities.forEach((ability, index) => {
+      if (!ability) return;
+      const explicitKey = ability.key
+        ? String(ability.key).toUpperCase()
+        : null;
+      if (explicitKey) {
+        keyedAbilities.set(explicitKey, ability);
+      }
+      const numericKey = String(index + 1);
+      if (!keyedAbilities.has(numericKey)) {
+        keyedAbilities.set(numericKey, ability);
+      }
+    });
+
+    ABILITIES.forEach((ability, index) => {
+      const explicitKey = ability?.key
+        ? String(ability.key).toUpperCase()
+        : null;
+      if (explicitKey) {
+        keyedAbilities.set(explicitKey, ability);
+      }
+      const numericKey = String(index + 1);
+      if (!keyedAbilities.has(numericKey)) {
+        keyedAbilities.set(numericKey, ability);
+      }
+    });
+
+    return keyedAbilities;
+  }
+
+  updateAbilities(abilitiesIndex) {
+    const currentGame = gameState.currentGame;
+    if (!currentGame || !Array.isArray(abilitiesIndex)) return;
+
+    const defaultAbilityKeys = new Set(
+      DEFAULT_ABILITYES
+        .map((ability) => String(ability?.key || "").toUpperCase())
+        .filter(Boolean),
+    );
+
+    if (!(this.localPlayerAbilities instanceof Map)) {
+      this.localPlayerAbilities = new Map();
+    } else {
+      this.localPlayerAbilities.clear();
+    }
+
+    if (
+      !currentGame.localPlayer ||
+      typeof currentGame.localPlayer !== "object"
+    ) {
+      currentGame.localPlayer = {};
+    }
+    currentGame.localPlayer.abilities = {};
+
+    const keyedAbilities = this._buildKeyedAbilityMap(currentGame);
+
+    let visibleSlotIndex = 0;
+    abilitiesIndex.forEach((abilityKey) => {
+      const normalizedKey = String(abilityKey).toUpperCase();
+      const abilityData = keyedAbilities.get(normalizedKey);
+      if (abilityData) {
+        this.localPlayerAbilities.set(normalizedKey, abilityData);
+        currentGame.localPlayer.abilities[normalizedKey] = abilityData;
+      }
+
+      if (defaultAbilityKeys.has(normalizedKey)) {
+        return;
+      }
+
+      if (abilityData && this.hud && this.hud.slots[visibleSlotIndex]) {
+        const slot = this.hud.slots[visibleSlotIndex];
+        slot.nameText.setText(abilityData.name);
+        this.tryAttachAbilityIcon(abilityData.name, slot.icon);
+      }
+      visibleSlotIndex += 1;
+    });
+  }
+
+  _hexColorToNumber(colorValue, fallback = 0xffffff) {
+    if (typeof colorValue === "number" && Number.isFinite(colorValue)) {
+      return colorValue;
+    }
+    if (typeof colorValue !== "string") return fallback;
+    const normalized = colorValue.trim().replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return fallback;
+    return parseInt(normalized, 16);
+  }
+
+  _abilityNameToAudioCandidates(abilityName) {
+    const raw = String(abilityName || "").trim();
+    if (!raw) return [];
+
+    const words = raw.split(/\s+/).filter(Boolean);
+    const camel = words
+      .map((w, i) => {
+        if (i === 0) return w.charAt(0).toLowerCase() + w.slice(1);
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      })
+      .join("");
+
+    const underscored = raw
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_\-]/gi, "");
+
+    const compact = raw
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9_\-]/gi, "");
+
+    const noDiacriticsCamel = words
+      .map((w, i) => {
+        const norm = w
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        if (i === 0) return norm.charAt(0).toLowerCase() + norm.slice(1);
+        return norm.charAt(0).toUpperCase() + norm.slice(1);
+      })
+      .join("");
+
+    return Array.from(
+      new Set([raw, camel, underscored, compact, noDiacriticsCamel].filter(Boolean)),
+    );
+  }
+
+  _playAudioByBaseName(baseName, volume) {
+    const safeVolume = Phaser.Math.Clamp(volume, 0, 1);
+    if (safeVolume <= 0.02) return;
+
+    const candidates = this._abilityNameToAudioCandidates(baseName);
+    if (candidates.length === 0) return;
+
+    const tryPlayCandidate = (idx) => {
+      if (idx >= candidates.length) return;
+      const candidate = candidates[idx];
+      const audioKey = `abilitySfx_${candidate}`;
+
+      if (this.cache.audio.exists(audioKey)) {
+        this.sound.play(audioKey, { volume: safeVolume });
+        return;
+      }
+
+      if (this.pendingAudioLoads.has(audioKey)) {
+        this.time.delayedCall(80, () => tryPlayCandidate(idx));
+        return;
+      }
+
+      this.pendingAudioLoads.add(audioKey);
+      this.load.audio(audioKey, `assets/sounds/${candidate}.mp3`);
+      this.load.once(`filecomplete-audio-${audioKey}`, () => {
+        this.pendingAudioLoads.delete(audioKey);
+        if (this.cache.audio.exists(audioKey)) {
+          this.sound.play(audioKey, { volume: safeVolume });
+        }
+      });
+      this.load.once(`loaderror`, () => {
+        this.pendingAudioLoads.delete(audioKey);
+        tryPlayCandidate(idx + 1);
+      });
+      this.load.start();
+    };
+
+    tryPlayCandidate(0);
+  }
+
+  _playAbilityFxSounds(effectPayload) {
+    if (!effectPayload) return;
+
+    const originX = Number(effectPayload.x);
+    const originY = Number(effectPayload.y);
+    if (!Number.isFinite(originX) || !Number.isFinite(originY)) return;
+
+    const listenerX = Number.isFinite(this.player?.x) ? this.player.x : originX;
+    const listenerY = Number.isFinite(this.player?.y) ? this.player.y : originY;
+    const distance = Phaser.Math.Distance.Between(listenerX, listenerY, originX, originY);
+    const hearDistance = Math.max(500, Number(effectPayload.hearDistance) || 2600);
+    const distanceVolume = Phaser.Math.Clamp(1 - distance / hearDistance, 0, 1);
+
+    const audioClips = Array.isArray(effectPayload.audioClips)
+      ? effectPayload.audioClips
+      : this._abilityNameToAudioCandidates(effectPayload.abilityName);
+    audioClips.forEach((clipName) => {
+      this._playAudioByBaseName(clipName, distanceVolume);
+    });
+
+    const isAttacker = effectPayload.ownerId === this.localUserId;
+    if (isAttacker && Array.isArray(effectPayload.attackerAudioClips)) {
+      effectPayload.attackerAudioClips.forEach((clipName) => {
+        this._playAudioByBaseName(clipName, 1);
+      });
+    }
+  }
+
+  _playRayCapsuleFx(effectPayload) {
+    if (!effectPayload || effectPayload.type !== "ray-capsule") return;
+
+    const startX = Number(effectPayload.x);
+    const startY = Number(effectPayload.y);
+    const direction = Number.isFinite(effectPayload.direction)
+      ? effectPayload.direction
+      : 0;
+    const range = Number.isFinite(effectPayload.range) ? effectPayload.range : 1200;
+    const radius = Number.isFinite(effectPayload.radius) ? effectPayload.radius : 100;
+    const durationMs = Math.max(
+      60,
+      Math.floor((Number(effectPayload.duration) || 0.2) * 1000),
+    );
+    const colors = Array.isArray(effectPayload.colors)
+      ? effectPayload.colors
+      : ["#ffffff", "#cccccc", "#888888"];
+
+    const endX = startX + Math.cos(direction) * range;
+    const endY = startY + Math.sin(direction) * range;
+
+    const g = this.add.graphics();
+    g.setDepth(1100);
+
+    const drawAtProgress = (progress) => {
+      if (!g || !g.active) return;
+      g.clear();
+
+      const p = Phaser.Math.Clamp(progress, 0, 1);
+      const currentLen = range * (0.2 + 0.8 * p);
+      const tipX = startX + Math.cos(direction) * currentLen;
+      const tipY = startY + Math.sin(direction) * currentLen;
+      const fade = 1 - p;
+      const widthPulse = 0.92 + 0.08 * Math.sin(this.time.now * 0.045);
+
+      const colorCount = Math.max(1, colors.length);
+      for (let layer = colorCount - 1; layer >= 0; layer--) {
+        const color = this._hexColorToNumber(colors[layer], 0xffffff);
+        const t = (layer + 1) / colorCount;
+        const width = Math.max(2, radius * 2 * t * widthPulse);
+        const alpha = (0.1 + 0.3 * t) * fade;
+
+        g.lineStyle(width, color, alpha);
+        g.beginPath();
+        g.moveTo(startX, startY);
+        g.lineTo(tipX, tipY);
+        g.strokePath();
+
+        g.fillStyle(color, alpha * 0.95);
+        g.fillCircle(startX, startY, width * 0.5);
+        g.fillCircle(tipX, tipY, width * 0.5);
+      }
+    };
+
+    drawAtProgress(0);
+    this._playAbilityFxSounds(effectPayload);
+
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: durationMs,
+      ease: "Sine.Out",
+      onUpdate: (tween) => {
+        drawAtProgress(tween.getValue());
+      },
+      onComplete: () => {
+        if (g && g.active) g.destroy();
+      },
+    });
+  }
+
+  _resolveAbilityForEffect(effectPayload) {
+    if (!effectPayload) return null;
+    const effectKey = effectPayload.abilityKey
+      ? String(effectPayload.abilityKey).toUpperCase()
+      : null;
+
+    if (effectKey && this.localPlayerAbilities.has(effectKey)) {
+      return this.localPlayerAbilities.get(effectKey);
+    }
+
+    const currentGame = gameState.currentGame;
+    const keyedAbilities = this._buildKeyedAbilityMap(currentGame || {});
+    if (effectKey && keyedAbilities.has(effectKey)) {
+      return keyedAbilities.get(effectKey);
+    }
+
+    return null;
+  }
+
+  playAbilityFx(effectPayload) {
+    if (!effectPayload || typeof effectPayload !== "object") return;
+
+    const ability = this._resolveAbilityForEffect(effectPayload);
+    if (ability && typeof ability.effect === "function") {
+      const handledByCustomEffect = ability.effect(effectPayload, this);
+      if (handledByCustomEffect === true) {
+        return;
+      }
+    }
+
+    if (effectPayload.type === "ray-capsule") {
+      this._playRayCapsuleFx(effectPayload);
+    }
+  }
+
+  drawBar(graphics, x, y, width, height, ratio, fillColor) {
+    const safeRatio = Math.max(0, Math.min(1, ratio));
+    graphics.clear();
+    graphics.fillStyle(0x0f1115, 0.82);
+    graphics.fillRoundedRect(x, y, width, height, 8);
+    graphics.fillStyle(fillColor, 0.95);
+    graphics.fillRoundedRect(
+      x + 2,
+      y + 2,
+      (width - 4) * safeRatio,
+      height - 4,
+      6,
+    );
+    graphics.lineStyle(2, 0xffffff, 0.18);
+    graphics.strokeRoundedRect(x, y, width, height, 8);
+  }
+
+  tryAttachAbilityIcon(abilityName, iconSprite) {
+    if (!abilityName || !iconSprite) return;
+    const safeBaseName = String(abilityName)
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_\-]/g, "");
+    if (!safeBaseName) return;
+
+    const textureKey = `${safeBaseName}_hotbarSprite`;
+    if (this.textures.exists(textureKey)) {
+      iconSprite.setTexture(textureKey);
+      return;
+    }
+
+    this.load.image(
+      textureKey,
+      `assets/images/${safeBaseName}_hotbarSprite.png`,
+    );
+    this.load.once(`filecomplete-image-${textureKey}`, () => {
+      if (iconSprite && iconSprite.active) {
+        iconSprite.setTexture(textureKey);
+      }
+    });
+    this.load.start();
+  }
+
+  createGameHud(currentGame) {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const abilities = this.getHotbarAbilities(currentGame);
+
+    const slotCount = Math.max(1, abilities.length);
+    const horizontalPadding = Math.max(12, Math.floor(width * 0.02));
+    const slotGap = width < 900 ? 6 : 10;
+    const maxSlotByWidth = Math.floor(
+      (width - horizontalPadding * 2 - (slotCount - 1) * slotGap) / slotCount,
+    );
+    const slotSize = Math.max(24, Math.min(92, maxSlotByWidth));
+    const hotbarWidth = slotCount * slotSize + (slotCount - 1) * slotGap;
+    const hotbarX = Math.floor((width - hotbarWidth) * 0.5);
+    const hotbarY = height - slotSize - 24;
+
+    const hud = {
+      slots: [],
+      hpBar: this.add.graphics(),
+      energyBar: this.add.graphics(),
+      hpLabel: this.add.text(0, 0, "", {
+        fontSize: "16px",
+        fontStyle: "700",
+        color: "#ffd6d6",
+      }),
+      energyLabel: this.add.text(0, 0, "", {
+        fontSize: "16px",
+        fontStyle: "700",
+        color: "#d8f5ff",
+      }),
+      pointsText: this.add
+        .text(width * 0.5, hotbarY - 56, "Punti: 0", {
+          fontSize: "18px",
+          fontStyle: "700",
+          color: "#fff1b0",
+        })
+        .setOrigin(0.5, 0.5),
+    };
+
+    abilities.forEach((ability, index) => {
+      const x = hotbarX + index * (slotSize + slotGap);
+      const bg = this.add
+        .rectangle(x, hotbarY, slotSize, slotSize, 0x12171f, 0.9)
+        .setOrigin(0, 0);
+      bg.setStrokeStyle(2, 0xffffff, 0.2);
+
+      const icon = this.add
+        .image(x + slotSize * 0.5, hotbarY + slotSize * 0.42, "sensorDot")
+        .setDisplaySize(slotSize * 0.55, slotSize * 0.55)
+        .setAlpha(0.95);
+
+      const nameText = this.add
+        .text(x + slotSize * 0.5, hotbarY + slotSize - 8, ability.name, {
+          fontSize: `${Math.max(9, Math.min(12, Math.floor(slotSize * 0.18)))}px`,
+          color: "#f5f7ff",
+          align: "center",
+          wordWrap: { width: slotSize - 8 },
+        })
+        .setOrigin(0.5, 1);
+
+      this.tryAttachAbilityIcon(ability.name, icon);
+      hud.slots.push({ bg, icon, nameText });
+    });
+
+    const barsY = hotbarY - 36;
+    const barWidth = Math.min(280, Math.max(170, Math.floor(width * 0.28)));
+    const barHeight = 22;
+    const barGapFromCenter = 26;
+
+    const hpX = width * 0.5 - barGapFromCenter - barWidth;
+    const energyX = width * 0.5 + barGapFromCenter;
+
+    hud.hpLayout = { x: hpX, y: barsY, width: barWidth, height: barHeight };
+    hud.energyLayout = {
+      x: energyX,
+      y: barsY,
+      width: barWidth,
+      height: barHeight,
+    };
+
+    hud.hpLabel.setPosition(hpX, barsY - 18);
+    hud.energyLabel.setPosition(energyX, barsY - 18);
+
+    const toPin = [
+      hud.hpBar,
+      hud.energyBar,
+      hud.hpLabel,
+      hud.energyLabel,
+      hud.pointsText,
+    ];
+    hud.slots.forEach((slot) => {
+      toPin.push(slot.bg, slot.icon, slot.nameText);
+    });
+
+    toPin.forEach((obj) => {
+      obj.setScrollFactor(0);
+      obj.setDepth(1200);
+    });
+
+    this.hud = hud;
+    this.updateHudValues();
+  }
+
+  updateHudValues() {
+    if (!this.hud) return;
+
+    const hp = Number.isFinite(this.localPlayerState?.hp)
+      ? this.localPlayerState.hp
+      : 0;
+    const energy = Number.isFinite(this.localPlayerState?.energy)
+      ? this.localPlayerState.energy
+      : 0;
+    const points = Number.isFinite(this.localPlayerState?.points)
+      ? this.localPlayerState.points
+      : 0;
+
+    const hpMax = 100;
+    const energyMax = 100;
+    this.drawBar(
+      this.hud.hpBar,
+      this.hud.hpLayout.x,
+      this.hud.hpLayout.y,
+      this.hud.hpLayout.width,
+      this.hud.hpLayout.height,
+      hp / hpMax,
+      0xd15252,
+    );
+    this.drawBar(
+      this.hud.energyBar,
+      this.hud.energyLayout.x,
+      this.hud.energyLayout.y,
+      this.hud.energyLayout.width,
+      this.hud.energyLayout.height,
+      energy / energyMax,
+      0x49b8e8,
+    );
+
+    this.hud.hpLabel.setText(`Vita ${Math.max(0, Math.round(hp))}/${hpMax}`);
+    this.hud.energyLabel.setText(
+      `Energia ${Math.max(0, Math.round(energy))}/${energyMax}`,
+    );
+    this.hud.pointsText.setText(`Punti: ${Math.max(0, Math.round(points))}`);
   }
 
   createGrassTexture() {
@@ -580,7 +1167,11 @@ export default class BootScene extends Phaser.Scene {
     if (!Array.isArray(obstacles)) return;
 
     obstacles.forEach((obstacle) => {
-      if (!obstacle || typeof obstacle.x !== "number" || typeof obstacle.y !== "number") {
+      if (
+        !obstacle ||
+        typeof obstacle.x !== "number" ||
+        typeof obstacle.y !== "number"
+      ) {
         return;
       }
 
@@ -632,7 +1223,10 @@ export default class BootScene extends Phaser.Scene {
 
     this._spawnObstaclesFromServer(currentGame.obstacles);
 
-    if (!Array.isArray(currentGame.obstacles) || currentGame.obstacles.length === 0) {
+    if (
+      !Array.isArray(currentGame.obstacles) ||
+      currentGame.obstacles.length === 0
+    ) {
       this.addRockObstacle(3738, 2160, 1.1, "obsidian");
       this.addRockObstacle(3738, 2300, 1.1, "granite");
       this.addRockObstacle(3738, 2450, 1.1, "sandstone");
@@ -649,6 +1243,8 @@ export default class BootScene extends Phaser.Scene {
     this.player.setCircle(18, 4, 4);
     this.player.setCollideWorldBounds(true);
     this.player.setMaxVelocity(this.playerSpeed, this.playerSpeed);
+    this.player.setDrag(900, 900);
+    this.player.setDamping(true);
 
     this.physics.add.collider(this.player, this.rockSensors);
     this.physics.add.collider(this.player, this.bushSensors);
@@ -657,23 +1253,40 @@ export default class BootScene extends Phaser.Scene {
     if (Array.isArray(currentGame.players)) {
       this.syncPlayersFromServer(currentGame.players);
     }
-    const inputKeys = ["W", "A", "S", "D", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
     this.keys = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
+      upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
+      downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
+      leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
+      rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
     });
-    //aggiunti l'emit al server quando si premono i tasti
+    this.input.keyboard.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.W,
+      Phaser.Input.Keyboard.KeyCodes.A,
+      Phaser.Input.Keyboard.KeyCodes.S,
+      Phaser.Input.Keyboard.KeyCodes.D,
+      Phaser.Input.Keyboard.KeyCodes.UP,
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    ]);
+    // Le abilita restano server-side: inviamo solo key + stato premuto/rilasciato.
     this.input.keyboard.on("keydown", (event) => {
-      if (inputKeys.includes(event.key.toUpperCase())) {
-        socketFuncions.emitPlayerInput(event.key.toUpperCase(), true);
+      const key = event.key.toUpperCase();
+      if (!abilityKeys.includes(key)) return;
+
+      // Se abbiamo gia ricevuto la lista abilita dal server, ignora tasti non assegnati.
+      if (
+        this.localPlayerAbilities instanceof Map &&
+        this.localPlayerAbilities.size > 0
+      ) {
+        if (!this.localPlayerAbilities.has(key)) return;
       }
-    });
-    this.input.keyboard.on("keyup", (event) => {
-      if (inputKeys.includes(event.key.toUpperCase())) {
-        socketFuncions.emitPlayerInput(event.key.toUpperCase(), false);
-      }
+
+      socketFuncions.emitAbilityInput(key);
     });
     this.cursors = this.input.keyboard.createCursorKeys();
     this.input.setDefaultCursor("crosshair");
@@ -711,6 +1324,8 @@ export default class BootScene extends Phaser.Scene {
     });
     this.positionText.setScrollFactor(0); // non segue la camera
     this.positionText.setDepth(1000); // sopra agli altri elementi
+
+    this.createGameHud(currentGame);
   }
 
   syncPlayersFromServer(playersPayload) {
@@ -723,23 +1338,49 @@ export default class BootScene extends Phaser.Scene {
       seenPlayers.add(playerData.userId);
 
       if (playerData.userId === this.localUserId) {
-        if (this.player?.body) {
-          this.player.body.reset(playerData.x, playerData.y);
-        } else if (this.player) {
-          this.player.setPosition(playerData.x, playerData.y);
+        this.localPlayerState = {
+          hp: Number.isFinite(playerData.hp)
+            ? playerData.hp
+            : this.localPlayerState.hp,
+          energy: Number.isFinite(playerData.energy)
+            ? playerData.energy
+            : this.localPlayerState.energy,
+          points: Number.isFinite(playerData.points)
+            ? playerData.points
+            : Number.isFinite(playerData?.attributes?.domainPoints)
+              ? playerData.attributes.domainPoints
+              : this.localPlayerState.points,
+        };
+        if (!this.localSpawnSynced) {
+          if (this.player?.body) {
+            this.player.body.reset(playerData.x, playerData.y);
+          } else if (this.player) {
+            this.player.setPosition(playerData.x, playerData.y);
+          }
+          this.localSpawnSynced = true;
+        }
+        if (typeof playerData.direction === "number") {
+          this.player.rotation = playerData.direction;
         }
         return;
       }
 
       let remotePlayer = this.remotePlayers.get(playerData.userId);
       if (!remotePlayer) {
-        remotePlayer = this.add.sprite(playerData.x, playerData.y, "playerCircle");
+        remotePlayer = this.add.sprite(
+          playerData.x,
+          playerData.y,
+          "playerCircle",
+        );
         remotePlayer.setDepth(10);
         remotePlayer.setTint(0x7cc7ff);
         this.remotePlayers.set(playerData.userId, remotePlayer);
       }
 
       remotePlayer.setPosition(playerData.x, playerData.y);
+      if (typeof playerData.direction === "number") {
+        remotePlayer.rotation = playerData.direction;
+      }
     });
 
     for (const [userId, remotePlayer] of this.remotePlayers.entries()) {
@@ -751,9 +1392,72 @@ export default class BootScene extends Phaser.Scene {
   }
 
   update(_time, delta) {
-    // Il movimento è autoritativo lato server: qui resta solo il debug.
+    let dirX = 0;
+    let dirY = 0;
+
+    if (this.keys.left?.isDown || this.keys.leftArrow?.isDown) dirX -= 1;
+    if (this.keys.right?.isDown || this.keys.rightArrow?.isDown) dirX += 1;
+    if (this.keys.up?.isDown || this.keys.upArrow?.isDown) dirY -= 1;
+    if (this.keys.down?.isDown || this.keys.downArrow?.isDown) dirY += 1;
+
+    if (dirX !== 0 || dirY !== 0) {
+      const length = Math.hypot(dirX, dirY);
+      this.player.body.setVelocity(
+        (dirX / length) * this.playerSpeed,
+        (dirY / length) * this.playerSpeed,
+      );
+    } else {
+      this.player.body.setVelocity(0, 0);
+    }
+
+    const pointer = this.input.activePointer;
+    if (this.player && pointer) {
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const angle = Phaser.Math.Angle.Between(
+        this.player.x,
+        this.player.y,
+        worldPoint.x,
+        worldPoint.y,
+      );
+      const threshold = Phaser.Math.DegToRad(4);
+      const angleDelta =
+        this.lastSentDirection === null
+          ? Infinity
+          : Math.abs(Phaser.Math.Angle.Wrap(angle - this.lastSentDirection));
+
+      this.player.rotation = angle;
+
+      const distanceSinceLastSend =
+        this.lastSentX === null || this.lastSentY === null
+          ? Infinity
+          : Phaser.Math.Distance.Between(
+              this.player.x,
+              this.player.y,
+              this.lastSentX,
+              this.lastSentY,
+            );
+
+      const movedEnough = distanceSinceLastSend >= 4;
+      const rotatedEnough = angleDelta >= threshold;
+      const timeElapsed = _time - this.lastTransformSentAt >= 50;
+
+      if (movedEnough || rotatedEnough || timeElapsed) {
+        this.lastSentDirection = angle;
+        this.lastSentX = this.player.x;
+        this.lastSentY = this.player.y;
+        this.lastTransformSentAt = _time;
+        socketFuncions.emitPlayerTransform({
+          x: this.player.x,
+          y: this.player.y,
+          direction: angle,
+          delta,
+        });
+      }
+    }
     this.fpsText.setText(`FPS: ${this.game.loop.actualFps.toFixed(1)}`);
-    this.positionText.setText(`Posizione: ${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}`);
+    this.positionText.setText(
+      `Posizione: ${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}`,
+    );
+    this.updateHudValues();
   }
 }
-

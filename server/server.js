@@ -6,6 +6,7 @@ import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
 import { callbackify } from "util";
 import { isReadable } from "stream";
+import e from "express";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -203,6 +204,13 @@ io.on("connection", (socket) => {
     });
   });
 });
+
+export function getScoket(userId) {
+  if (!users.has(userId)) {
+    return null;
+  }
+  return users.get(userId).socket;
+}
 
 // update classi
 utility.io = io;

@@ -1,6 +1,7 @@
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
 import { mainObjects } from "./main.js";
+import BootScene from "./scenes/BootScene.js";
 export const socketFuncions = {
   socket: null,
   roomList: null,
@@ -154,6 +155,15 @@ export const socketFuncions = {
       //console.log("PlayersPayload:", playersPayload);
       mainObjects.updatePlayers(playersPayload);
     });
+    tSocket.on("018", (effectPayload) => {
+      mainObjects.playAbilityFx(effectPayload);
+    });
+    tSocket.on("019", (abilitiesIndex) => {
+      console.log("messaggio 019 ricevuto");
+      console.log("abilitiesIndex: " + abilitiesIndex);
+      //aggiungo le abilità al player locale
+      mainObjects.updateAbilities(abilitiesIndex);
+    });
     this.socket = tSocket;
     return tSocket;
   },
@@ -243,8 +253,14 @@ export const socketFuncions = {
     });
     visual.elements.leaveRoomBtn.disabled = false;
   },
-  emitPlayerInput: function (key, isDown) {
-    this.socket.emit("107", key, isDown);
-    //console.log("messaggio 107 mandato");
+  emitPlayerTransform: function (payload) {
+    this.socket.emit("107", payload);
+  },
+  emitAbilityInput: function (index) {
+    console.log("emitAbilityInput: " + index);
+    this.socket.emit("109", index);
+  },
+  emitPlayerDirection: function (direction) {
+    this.socket.emit("108", direction);
   },
 };
