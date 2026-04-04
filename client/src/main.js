@@ -34,7 +34,7 @@ const config = {
   backgroundColor: "#000000",
   physics: {
     default: "arcade",
-    arcade: { gravity: { y: 0 }, debug: false },
+    arcade: { gravity: { y: 0 }, debug: true },
   },
   fps: {
     target: 60,
@@ -237,7 +237,51 @@ export const mainObjects = {
   playerRespawn: function (spawnX, spawnY) {
     const gameScene = game?.scene?.getScene("BootScene");
     gameScene?.playerRespawn(spawnX, spawnY);
-  }
+  },
+
+  gameOver: function (winnerName) {
+    // Overlay fine partita
+    const overlay = document.createElement("div");
+    overlay.id = "gameOverOverlay";
+    overlay.style.cssText = [
+      "position:fixed", "inset:0",
+      "background:rgba(0,0,0,0.78)",
+      "display:flex", "flex-direction:column",
+      "align-items:center", "justify-content:center",
+      "z-index:99999", "pointer-events:all",
+    ].join(";");
+
+    const img = document.createElement("img");
+    img.src = "assets/images/VictoryRoyale.png";
+    img.alt = "Victory Royale";
+    img.style.cssText = "max-width:62vw;max-height:48vh;object-fit:contain;";
+
+    const txt = document.createElement("h2");
+    txt.textContent = winnerName ? `Vincitore: ${winnerName}` : "Partita terminata!";
+    txt.style.cssText = [
+      "color:#ffd700", "font-size:2.4rem",
+      "margin-top:1.2rem", "font-family:sans-serif",
+      "text-shadow:0 3px 12px #000", "text-align:center",
+    ].join(";");
+
+    overlay.appendChild(img);
+    overlay.appendChild(txt);
+    document.body.appendChild(overlay);
+
+    // Suono vittoria
+    const audio = new Audio("assets/sounds/victory-royale.mp3");
+    audio.volume = 0.8;
+    audio.play().catch(() => {});
+
+    // Torna alla lobby dopo 6 secondi
+    setTimeout(() => {
+      const el = document.getElementById("gameOverOverlay");
+      if (el) el.remove();
+      this.leaveRoom();
+      visual.showScreen(visual.screens.lobbyScreen);
+      visual.showElement(visual.elements.gameTitle);
+    }, 6000);
+  },
 
 };
 

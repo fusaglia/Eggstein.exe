@@ -1,4 +1,3 @@
-import { re } from "mathjs";
 import { getSocket } from "./server.js";
 
 const WORLD_WIDTH = 3000;
@@ -6,7 +5,25 @@ const WORLD_HEIGHT = 3000;
 const PLAYER_SPEED = 320;
 const MOVE_SMOOTHNESS = 18;
 const RESPAWN_DELAY_MS = 3000;
+const GAME_DURATION_MS = 5 * 60 * 1000; // 5 minuti
 const test = true;
+
+const CHARACTER_SKINS = [
+  "GojoPesce",
+  "Jogo",
+  "ReggieSon",
+  "SukunaGuguGaga",
+  "Thukuna1",
+  "Thukuna2",
+  "YouAreSoRight",
+];
+
+function pickRandomSkin(excludeSkin) {
+  const available = excludeSkin
+    ? CHARACTER_SKINS.filter((s) => s !== excludeSkin)
+    : CHARACTER_SKINS;
+  return available[Math.floor(Math.random() * available.length)];
+}
 const validAbilityKeys = new Set([
   "1",
   "2",
@@ -265,6 +282,8 @@ function schedulePlayerRespawn(player, room, delayMs = RESPAWN_DELAY_MS) {
     player.direction = Number.isFinite(player.direction) ? player.direction : 0;
     player.hp = 100;
     player.energy = 100;
+    // Cambia skin al respawn
+    player.skin = pickRandomSkin(player.skin);
 
     if (!player.attributes || typeof player.attributes !== "object") {
       player.attributes = {};
@@ -365,6 +384,11 @@ function applyRayCapsuleAbility(player, room, ability) {
   hits.forEach(({ target, damage, knockback }) => {
     target.hp = Math.max(0, target.hp - damage);
     if (target.hp <= 0) {
+      // Assegna +100 punti al killer
+      const killer = room.game.players.get(player.userId);
+      if (killer) {
+        killer.points = (killer.points ?? 0) + 100;
+      }
       schedulePlayerRespawn(target, room, RESPAWN_DELAY_MS);
       return;
     }
@@ -467,6 +491,11 @@ function applyProjectileAbility(player, room, ability) {
   hits.forEach(({ target, damage, knockback }) => {
     target.hp = Math.max(0, target.hp - damage);
     if (target.hp <= 0) {
+      // Assegna +100 punti al killer
+      const killer = room.game.players.get(player.userId);
+      if (killer) {
+        killer.points = (killer.points ?? 0) + 100;
+      }
       schedulePlayerRespawn(target, room, RESPAWN_DELAY_MS);
       return;
     }
@@ -610,6 +639,7 @@ function toClientGame(game) {
       attributes: player.attributes,
       abilitiesActive: player.activeAbilities,
       energy: player.energy,
+      skin: player.skin,
     })),
     moveSmoothness: game.moveSmoothness,
   };
@@ -636,6 +666,7 @@ function startGame(io, roomId, rooms) {
       return;
     }
     const spawn = randomSpawnPosition();
+    const playerSkin = pickRandomSkin();
     room.game.players.set(key, {
       userId: value.userId,
       userName: value.userName,
@@ -646,6 +677,7 @@ function startGame(io, roomId, rooms) {
       hp: 100,
       energy: 100,
       lives: 3,
+      skin: playerSkin,
       keyDowns: new Map(),
       attributes: {
         isHit: false,
@@ -744,12 +776,38 @@ function startGame(io, roomId, rooms) {
         attributes: player.attributes,
         abilitiesActive: player.activeAbilities,
         energy: player.energy,
+        skin: player.skin,
       });
     });
 
     // Non volatile: evitare perdita di tick critici come morte/respawn.
     io.to(roomId).emit("016", playersPayload);
   }, 1000 / 60);
+
+  // Timer fine partita (5 minuti)
+  room.gameTimer = setTimeout(() => {
+    const currentRoom = rooms.get(roomId);
+    if (!currentRoom || !currentRoom.isPlaying || !currentRoom.game) return;
+
+    clearInterval(currentRoom.gameInterval);
+    currentRoom.gameInterval = null;
+    currentRoom.isPlaying = false;
+
+    // Trova il vincitore (più punti)
+    let winner = null;
+    let maxPoints = -1;
+    currentRoom.game.players.forEach((p) => {
+      if ((p.points ?? 0) > maxPoints) {
+        maxPoints = p.points ?? 0;
+        winner = p;
+      }
+    });
+
+    const winnerName = winner ? winner.userName : "";
+    io.to(roomId).emit("022", winnerName);
+
+    currentRoom.game = null;
+  }, GAME_DURATION_MS);
 }
 
 export {

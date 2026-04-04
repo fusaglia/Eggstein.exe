@@ -171,6 +171,10 @@ export const socketFuncions = {
     tSocket.on("021", (spawnX, spawnY) => {
       mainObjects.playerRespawn(spawnX, spawnY);
     });
+    tSocket.on("022", (winnerName) => {
+      console.log("messaggio 022 ricevuto - fine partita, vincitore:", winnerName);
+      mainObjects.gameOver(winnerName);
+    });
     this.socket = tSocket;
     return tSocket;
   },

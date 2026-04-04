@@ -104,26 +104,34 @@ export const visual = {
 
     this.elements.createRoomBtn.addEventListener("click", () => {
       console.log("Create Room button clicked");
-      // prendi il roomId dall'input con la regex
       let regex = new RegExp("^[a-zA-Z0-9_]+$");
       const roomId = this.elements.createRoomIdInput.value.trim();
       const attributes = {};
       const maxPlayer = parseInt(this.elements.createRoomMaxPlayers.value) || 8;
       const password = this.elements.createRoomPassword.value.trim();
       const mappa = this.elements.createRoomMap.value || "mappa1";
+
+      const errorEl = document.getElementById("createRoomError");
+      if (errorEl) errorEl.textContent = "";
+
       if (!roomId) {
+        if (errorEl) errorEl.textContent = "Inserisci un ID stanza.";
         console.log("RoomId nullo");
       } else if (!regex.test(roomId)) {
+        if (errorEl) errorEl.textContent = "ID stanza non valido: usa solo lettere, numeri e _.";
         console.log("RoomId non valido");
       } else if (roomId.length < 5) {
+        if (errorEl) errorEl.textContent = "ID stanza troppo corto (min 5 caratteri).";
         console.log("RoomId troppo corto");
       } else if (roomId.length > 21) {
+        if (errorEl) errorEl.textContent = "ID stanza troppo lungo (max 21 caratteri).";
         console.log("RoomId troppo lungo");
       } else if (maxPlayer < 2 || maxPlayer > 8) {
+        if (errorEl) errorEl.textContent = "Il numero di giocatori deve essere tra 2 e 8.";
         console.log("MaxPlayer non valido");
       } else {
-        console.log("RoomId valido");
-        if (!regex.test(password) && password.length > 0) {
+        if (password.length > 0 && !regex.test(password)) {
+          if (errorEl) errorEl.textContent = "Password non valida: usa solo lettere, numeri e _.";
           console.log("Password non valida");
           return;
         }

@@ -2059,6 +2059,63 @@ export default class BootScene extends Phaser.Scene {
 
     this.hud = hud;
     this.updateHudValues();
+    this._createLeaderboard();
+
+    // Timer conta alla rovescia 5 minuti
+    this.matchDurationMs = 5 * 60 * 1000;
+    this.matchStartTime = this.time.now;
+    const timerX = this.scale.width / 2;
+    const timerY = 18;
+    this.hud.timerText = this.add
+      .text(timerX, timerY, "5:00", {
+        fontSize: "22px",
+        fontStyle: "700",
+        color: "#ffffff",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(1202);
+  }
+
+  _createLeaderboard() {
+    const width = this.scale.width;
+    const panelX = width - 220;
+    const panelY = 16;
+    const panelW = 200;
+    const panelH = 100;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a0d12, 0.78);
+    bg.fillRoundedRect(panelX, panelY, panelW, panelH, 10);
+    bg.setScrollFactor(0).setDepth(1200);
+
+    const title = this.add.text(panelX + panelW / 2, panelY + 10, "🏆 Classifica", {
+      fontSize: "13px", fontStyle: "700", color: "#ffd700",
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(1201);
+
+    const slotTexts = [];
+    for (let i = 0; i < 3; i++) {
+      const t = this.add.text(panelX + 10, panelY + 30 + i * 22, `${i + 1}. ---`, {
+        fontSize: "12px", color: "#f0f0f0",
+      }).setScrollFactor(0).setDepth(1201);
+      slotTexts.push(t);
+    }
+
+    this.hud.leaderboardBg = bg;
+    this.hud.leaderboardTitle = title;
+    this.hud.leaderboardSlots = slotTexts;
+  }
+
+  _updateLeaderboard(playersPayload) {
+    if (!this.hud?.leaderboardSlots) return;
+    const sorted = [...playersPayload].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+    for (let i = 0; i < 3; i++) {
+      const p = sorted[i];
+      const label = p ? `${i + 1}. ${p.userName}: ${p.points ?? 0}` : `${i + 1}. ---`;
+      this.hud.leaderboardSlots[i].setText(label);
+    }
   }
 
   /**
@@ -2151,6 +2208,7 @@ export default class BootScene extends Phaser.Scene {
    * in `ROCK_TYPES` e `BUSH_TYPES`. Viene usata per evitare asset esterni.
    */
   createPlayerTexture() {
+    // Texture fallback circolare usata se il PNG non è ancora disponibile
     const g = this.add.graphics();
     g.fillStyle(0xb0b0b0, 1);
     g.fillCircle(22, 22, 20);
@@ -2158,6 +2216,7 @@ export default class BootScene extends Phaser.Scene {
     g.strokeCircle(22, 22, 20);
     g.generateTexture("playerCircle", 44, 44);
     g.destroy();
+    // I PNG dei personaggi vengono caricati in preload()
   }
 
   /**
@@ -2352,6 +2411,16 @@ export default class BootScene extends Phaser.Scene {
    * Inizializza la scena: crea textures, mondo fisico, player, input
    * e HUD. Viene eseguito una sola volta quando la scena parte.
    */
+  preload() {
+    const skins = [
+      "GojoPesce", "Jogo", "ReggieSon", "SukunaGuguGaga",
+      "Thukuna1", "Thukuna2", "YouAreSoRight",
+    ];
+    skins.forEach((skin) => {
+      this.load.image(`skin_${skin}`, `assets/images/${skin}.png`);
+    });
+  }
+
   create() {
     const currentGame = gameState.currentGame || {};
 
@@ -2408,6 +2477,16 @@ export default class BootScene extends Phaser.Scene {
       this.worldHeight / 2,
       "playerCircle",
     );
+
+    // Applica subito la skin dal server se disponibile
+    const localPlayerData = Array.isArray(currentGame.players)
+      ? currentGame.players.find((p) => p.userId === this.localUserId)
+      : null;
+    if (localPlayerData?.skin && this.textures.exists(`skin_${localPlayerData.skin}`)) {
+      this.player.setTexture(`skin_${localPlayerData.skin}`);
+      this._localSkin = localPlayerData.skin;
+    }
+    this.player.setDisplaySize(44, 44);
     this.player.setCircle(18, 4, 4);
     this.player.setCollideWorldBounds(true);
     this.player.setMaxVelocity(this.playerSpeed, this.playerSpeed);
@@ -2642,19 +2721,38 @@ export default class BootScene extends Phaser.Scene {
         if (this.player?.active && typeof playerData.direction === "number") {
           this.player.rotation = playerData.direction;
         }
+        // Aggiorna skin del player locale se disponibile
+        if (playerData.skin && playerData.skin !== this._localSkin) {
+          const skinKey = this.textures.exists(`skin_${playerData.skin}`)
+            ? `skin_${playerData.skin}`
+            : "playerCircle";
+          this.player?.setTexture(skinKey);
+          this.player?.setDisplaySize(44, 44);
+          this._localSkin = playerData.skin;
+        }
         return;
       }
 
       let remotePlayer = this.remotePlayers.get(playerData.userId);
       if (!remotePlayer) {
-        remotePlayer = this.add.sprite(
-          playerData.x,
-          playerData.y,
-          "playerCircle",
-        );
+        const skinKey = playerData.skin && this.textures.exists(`skin_${playerData.skin}`)
+          ? `skin_${playerData.skin}`
+          : "playerCircle";
+        remotePlayer = this.add.sprite(playerData.x, playerData.y, skinKey);
+        remotePlayer.setDisplaySize(44, 44);
         remotePlayer.setDepth(10);
-        remotePlayer.setTint(0x7cc7ff);
+        remotePlayer._currentSkin = playerData.skin;
         this.remotePlayers.set(playerData.userId, remotePlayer);
+      } else {
+        // Aggiorna skin se cambiata (es. dopo respawn)
+        if (playerData.skin && playerData.skin !== remotePlayer._currentSkin) {
+          const skinKey = this.textures.exists(`skin_${playerData.skin}`)
+            ? `skin_${playerData.skin}`
+            : "playerCircle";
+          remotePlayer.setTexture(skinKey);
+          remotePlayer.setDisplaySize(44, 44);
+          remotePlayer._currentSkin = playerData.skin;
+        }
       }
 
       if (!remotePlayer || !remotePlayer.active) return;
@@ -2670,6 +2768,8 @@ export default class BootScene extends Phaser.Scene {
         this.remotePlayers.delete(userId);
       }
     }
+
+    this._updateLeaderboard(playersPayload);
   }
 
   update(_time, delta) {
@@ -2769,5 +2869,17 @@ export default class BootScene extends Phaser.Scene {
     );
     this._updateHotbarCooldowns();
     this.updateHudValues();
+
+    // Aggiorna timer countdown
+    if (this.hud?.timerText && this.matchStartTime !== undefined) {
+      const elapsed = this.time.now - this.matchStartTime;
+      const remaining = Math.max(0, this.matchDurationMs - elapsed);
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      const timerStr = `${minutes}:${String(seconds).padStart(2, "0")}`;
+      this.hud.timerText.setText(timerStr);
+      // Diventa rosso negli ultimi 30 secondi
+      this.hud.timerText.setColor(remaining < 30000 ? "#ff4444" : "#ffffff");
+    }
   }
 }
