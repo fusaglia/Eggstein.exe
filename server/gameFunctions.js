@@ -1,8 +1,8 @@
 import { re } from "mathjs";
 import { getSocket } from "./server.js";
 
-const WORLD_WIDTH = 7680;
-const WORLD_HEIGHT = 4320;
+const WORLD_WIDTH = 3000;
+const WORLD_HEIGHT = 3000;
 const PLAYER_SPEED = 320;
 const MOVE_SMOOTHNESS = 18;
 const RESPAWN_DELAY_MS = 3000;

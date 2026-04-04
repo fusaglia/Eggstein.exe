@@ -562,7 +562,7 @@ const ABILITIES = [
     cooldown: 15,
     speed: 1200,
     colors: ["#FFEAFF", "#FF66FF", "#FF46FF"],
-    soundEffects: ["HollowPurple"],
+    soundEffects: ["hollowPurple1"],
     lastImage: "",
     lastSoundEffect: "",
     imagesOnScreen: ["hollowPurple1", "hollowPurple2", "hollowPurple3", "PesceGojo"],
@@ -595,7 +595,7 @@ const ABILITIES = [
     soundEffects: [],
     lastImage: "",
     lastSoundEffect: "",
-    imagesOnScreen: ["dismantle1", "dismantle2", "sukuna1", "sukuna2","sukuna4", "sukuna3"],
+    imagesOnScreen: ["dismantle1", "dismantle2", "sukuna1", "sukuna2","sukuna4", "sukuna3", "SukunaPeter"],
     volume: 0.5,
     voiceEffects: [],
     attackerSoundEffects: [],
@@ -705,6 +705,7 @@ export default class BootScene extends Phaser.Scene {
   }
 
   playerDead() {
+    const deathSoundEffects = ["lobotomy-sound-effect", "pump-shotgun-fortnite", "jumpScare"];
     this.localPlayerState.isDead = true;
     this.localPlayerState.isRespawning = true;
     this.localPlayerState.hp = 0;
@@ -712,14 +713,15 @@ export default class BootScene extends Phaser.Scene {
       this.player.body.setVelocity(0, 0);
     }
     if (this.hud) {
-      this.hud.setPlayerDead(true);
+      //this.hud.setPlayerDead(true); 
+    }
+    const randomDeathSound = Phaser.Utils.Array.GetRandom(deathSoundEffects);
+    if (randomDeathSound) {
+      this._playAudioByBaseName(randomDeathSound, 1);
     }
   }
 
   playerRespawn(spawnX, spawnY) {
-    this.localPlayerState.isDead = false;
-    this.localPlayerState.isRespawning = false;
-    this.localPlayerState.hp = 100;
     if (this.hud) {
       this.hud.setPlayerDead(false);
     }
@@ -727,6 +729,8 @@ export default class BootScene extends Phaser.Scene {
     if (this.player) {
       if (this.player.body && Number.isFinite(spawnX) && Number.isFinite(spawnY)) {
         this.player.body.reset(spawnX, spawnY);
+        this.player.x = spawnX;
+        this.player.y = spawnY;
         this.player.body.setVelocity(0, 0);
       } else if (Number.isFinite(spawnX) && Number.isFinite(spawnY)) {
         this.player.setPosition(spawnX, spawnY);
@@ -734,6 +738,11 @@ export default class BootScene extends Phaser.Scene {
       this.player.setAlpha(1);
     }
     this.localSpawnSynced = false;
+    setTimeout(() => {
+      this.localPlayerState.isDead = false;
+      this.localPlayerState.isRespawning = false;
+      this.localPlayerState.hp = 100;
+    }, 200);
   }
 
 
@@ -1010,6 +1019,7 @@ export default class BootScene extends Phaser.Scene {
    */
   _playAudioByBaseName(baseName, volume) {
     const safeVolume = Phaser.Math.Clamp(volume, 0, 1);
+    console.log(`Trying to play audio for ability "${baseName}" at volume ${safeVolume}`);
     if (safeVolume <= 0.02) return;
 
     const candidates = this._abilityNameToAudioCandidates(baseName);
@@ -2515,6 +2525,36 @@ export default class BootScene extends Phaser.Scene {
 
     this._setupBackgroundMusic();
 
+    // Array con i nomi dei suoni random
+    this.randomSounds = [
+      "allarme-forci",
+      "among-us",
+      "bass-boosted-diarrhea",
+      "bass-drop-+-vine-boom",
+      "cod-zombies-scream",
+      "discord-join",
+      "dont-you-have-a-heart",
+      "end-call-discord",
+      "enrique!!",
+      "enrique",
+      "flapjack",
+      "flashbang",
+      "get-out",
+      "heavy-scream",
+      "i-just-hit-the-jackpot",
+      "lobotomy-bell",
+      "mario-jump",
+      "mommy-asmr",
+      "raaaah",
+      "ring-door-bell",
+      "skidaddle",
+      "sound-effect-deranged-woman-scream",
+      "vine-boom-sound-effect",
+      "where-are-you-going",
+      "yo-somebody-get-the-door",
+      "your-a-dead-man"
+    ];
+
     this.createGameHud(currentGame);
   }
 
@@ -2643,16 +2683,26 @@ export default class BootScene extends Phaser.Scene {
     let dirX = 0;
     let dirY = 0;
     const localHp = Number(this.localPlayerState?.hp);
-    const isLocalDead =
-      Boolean(this.localPlayerState?.isDead) ||
-      Boolean(this.localPlayerState?.isRespawning) ||
-      (Number.isFinite(localHp) && localHp <= 0);
+    if (localHp === 0) {
+      // Se siamo a 0 hp, consideriamo il giocatore come "morto" anche se
+      // non abbiamo ancora ricevuto l'attributo isDead dal server (es. per
+      // latenze o se il server aggiorna isDead con un po' di delay).
+      this.localPlayerState.isDead = true;
+    }
 
-    if (!isLocalDead) {
+    if (!this.localPlayerState.isDead) {
       if (this.keys.left?.isDown || this.keys.leftArrow?.isDown) dirX -= 1;
       if (this.keys.right?.isDown || this.keys.rightArrow?.isDown) dirX += 1;
       if (this.keys.up?.isDown || this.keys.upArrow?.isDown) dirY -= 1;
       if (this.keys.down?.isDown || this.keys.downArrow?.isDown) dirY += 1;
+    }
+
+    // Ogni 5-10 secondi riproduci un suono random dalla cartella sounds/randomSounds
+    if (!this.nextRandomSoundTime) this.nextRandomSoundTime = _time + Phaser.Math.Between(5000, 10000);
+    if (_time >= this.nextRandomSoundTime) {
+      const randomSound = Phaser.Utils.Array.GetRandom(this.randomSounds);
+      this._playAudioByBaseName(randomSound, 0.4);
+      this.nextRandomSoundTime = _time + Phaser.Math.Between(5000, 10000);
     }
 
     if (dirX !== 0 || dirY !== 0) {
@@ -2697,7 +2747,7 @@ export default class BootScene extends Phaser.Scene {
       const timeElapsed = _time - this.lastTransformSentAt >= 50;
 
       if (
-        !isLocalDead &&
+        !this.localPlayerState.isDead &&
         hasActiveMatch &&
         (movedEnough || rotatedEnough || timeElapsed)
       ) {

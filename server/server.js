@@ -57,7 +57,7 @@ io.on("connection", (socket) => {
       console.log("messaggio 208 mandato");
       return;
     }
-    if (!utility.checkUserName(userName)) {
+    if (!utility.checkUserName(userName) || userName == userId.substring(0, 10)) {
       socket.emit("202");
       console.log(
         "lo userName " + userName + " dello user " + userId + " non è valido",
