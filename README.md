@@ -1,7 +1,7 @@
 # 🥚 Eggstein.exe
 ---
 signor crobu, per avviare il progetto deve prima scaricarlo da git (con git pull, non si dimentichi!), poi deve usare il comando npm install nelle cartelle client e server (cd server e cd client se si fosse dimenticato 😉)
--ps non ci sono CP
+<br> -ps non ci sono CP
 
 ## 📡 Struttura dei Codici Messaggi
 
