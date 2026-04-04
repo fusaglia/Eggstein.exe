@@ -645,9 +645,47 @@ function toClientGame(game) {
   };
 }
 
+function buildPublicRoomList(rooms) {
+  const roomList = [];
+  rooms.forEach((room) => {
+    if (!room || room.isPlaying) {
+      return;
+    }
+    roomList.push({
+      roomId: room.roomId,
+      players: room.players.size,
+      maxPlayer: room.maxPlayer,
+      password: room.password ? "Yes" : "No",
+      mappa: room.mappa,
+    });
+  });
+  return roomList;
+}
+
+function broadcastPublicRoomList(io, rooms) {
+  io.emit("005", buildPublicRoomList(rooms));
+}
+
 function startGame(io, roomId, rooms) {
-  rooms.get(roomId).isPlaying = true;
   const room = rooms.get(roomId);
+  if (!room) {
+    return;
+  }
+
+  if (room.gameInterval) {
+    clearInterval(room.gameInterval);
+    room.gameInterval = null;
+  }
+  if (room.gameTimer) {
+    clearTimeout(room.gameTimer);
+    room.gameTimer = null;
+  }
+
+  room.isPlaying = true;
+  room.readyTimerRunning = false;
+  room.readyTimerToken = null;
+  broadcastPublicRoomList(io, rooms);
+
   const seed = `${roomId}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
   const obstacles = buildWorldObstacles(seed);
   room.game = {
@@ -750,8 +788,13 @@ function startGame(io, roomId, rooms) {
     if (currentRoom.players.size === 0 || currentRoom.game.players.size === 0) {
       clearInterval(room.gameInterval);
       room.gameInterval = null;
+      if (currentRoom.gameTimer) {
+        clearTimeout(currentRoom.gameTimer);
+        currentRoom.gameTimer = null;
+      }
       currentRoom.isPlaying = false;
       currentRoom.game = null;
+      broadcastPublicRoomList(io, rooms);
       return;
     }
 
@@ -807,6 +850,8 @@ function startGame(io, roomId, rooms) {
     io.to(roomId).emit("022", winnerName);
 
     currentRoom.game = null;
+    currentRoom.gameTimer = null;
+    broadcastPublicRoomList(io, rooms);
   }, GAME_DURATION_MS);
 }
 

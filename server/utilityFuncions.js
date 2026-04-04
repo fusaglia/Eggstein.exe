@@ -102,6 +102,9 @@ export const utility = {
   getRoomList: function (rooms) {
     const roomList = [];
     rooms.forEach((value, key) => {
+      if (!value || value.isPlaying) {
+        return;
+      }
       roomList.push({
         roomId: value.roomId,
         players: value.players.size,
@@ -151,6 +154,8 @@ export const utility = {
         mappa: attributes.mappa || "mappa1",
         password: attributes.password,
         isPlaying: false,
+        readyTimerRunning: false,
+        readyTimerToken: null,
       };
       console.log("attributi stanza: " + JSON.stringify(tempRoom));
       rooms.set(roomId, tempRoom);
@@ -186,17 +191,22 @@ export const utility = {
         callback("204");
         return;
       }
-      if (rooms.get(roomId).password) {
+      const room = rooms.get(roomId);
+      if (room.isPlaying) {
+        console.log("la stanza " + roomId + " è già in partita");
+        callback("204");
+        return;
+      }
+      if (room.password) {
         console.log("la stanza " + roomId + " è protetta da password");
-        if (rooms.get(roomId).password !== password) {
+        if (room.password !== password) {
           console.log("password sbagliata per la stanza " + roomId);
           callback("206");
           return;
         }
       }
-      if (rooms.get(roomId).players.size >= rooms.get(roomId).maxPlayer) {
+      if (room.players.size >= room.maxPlayer) {
         //controlla se nella stanza ci sono dei dublicati di userId, se si, rimuovili e permetti al nuovo user di entrare, altrimenti rifiuta l'ingresso
-        const room = rooms.get(roomId);
         let duplicateFound = false;
         room.players.forEach((value, key) => {
           const tempMap = new Map();
@@ -245,6 +255,20 @@ export const utility = {
         return;
       }
       const user = users.get(socket.userId);
+      const roomId = user.currentRoom || this.checkUserRoom(user.userId, rooms)?.roomId;
+      if (!roomId || !rooms.has(roomId)) {
+        callback("207");
+        return;
+      }
+
+      const room = rooms.get(roomId);
+      if (room.isPlaying) {
+        callback("209");
+        return;
+      }
+
+      user.currentRoom = roomId;
+
       if (user.isReady === true) {
         console.log(
           "lo user " +
@@ -252,7 +276,7 @@ export const utility = {
             " | " +
             user.userName +
             " della stanza " +
-            user.currentRoom +
+            roomId +
             "ha tolto il ready",
         );
         user.isReady = false;
@@ -263,7 +287,7 @@ export const utility = {
             " | " +
             user.userName +
             " della stanza " +
-            user.currentRoom +
+            roomId +
             " è ready",
         );
         user.isReady = true;
@@ -274,21 +298,20 @@ export const utility = {
             " | " +
             user.userName +
             " della stanza " +
-            user.currentRoom +
+            roomId +
             " ha un valore di ready non valido: " +
             user.isReady,
         );
         user.isReady = false;
       }
       callback("009", user.isReady);
-      this.io.to(user.currentRoom).emit("010", user.userId, user.isReady);
-      rooms.get(user.currentRoom).players.set(user.userId, {
+      this.io.to(roomId).emit("010", user.userId, user.isReady);
+      room.players.set(user.userId, {
         userId: user.userId,
         userName: user.userName,
         isReady: user.isReady,
       });
       //controllo se tutti i player della stanza sono ready, se si, inizia il timer per l'inizio della partita (per ora 5 secondi), se durante il timer qualcuno toglie il ready, annullo il timer
-      const room = rooms.get(user.currentRoom);
       let allReady = true;
       room.players.forEach((value, key) => {
         if (!value.isReady) {
@@ -296,7 +319,7 @@ export const utility = {
         }
       });
       if (!allReady) return;
-      this.startRoomReadyTimer(user.currentRoom, rooms, users);
+      this.startRoomReadyTimer(roomId, rooms, users);
     });
 
     socket.on("106", (callback) => {
@@ -389,7 +412,7 @@ export const utility = {
       }
     });
 
-    socket.on("109", (key) => {
+    socket.on("109", (key, direction) => {
       
       if (!users.has(socket.userId)) {
         return;
@@ -408,11 +431,13 @@ export const utility = {
       if (!gamePlayer || !gamePlayer.keyDowns) {
         return;
       }
+      if (typeof direction === "number" && Number.isFinite(direction)) {
+        gamePlayer.direction = direction;
+      }
       playerWantToUseAbility(user.userId, key, rooms, this.io);
       //
     });
     socket.on("108", (direction) => {
-      console.log("messaggo 108 ricevuto");
       if (!users.has(socket.userId)) {
         return;
       }
@@ -480,6 +505,11 @@ export const utility = {
       return;
     }
     let room = rooms.get(roomId);
+    if (room.isPlaying) {
+      console.log("la stanza " + roomId + " è già in partita");
+      callback("204");
+      return;
+    }
     if (room.players.size >= room.maxPlayer) {
       console.log("la stanza " + roomId + " è piena");
       return;
@@ -497,6 +527,7 @@ export const utility = {
     socket.emit("007", this.toClientRoom(room));
 
     this.io.to(roomId).emit("008", this.toClientUser(users.get(socket.userId)));
+    this.io.emit("005", this.getRoomList(rooms));
     room = rooms.get(user.currentRoom);
     let allReady = true;
     room.players.forEach((value, key) => {
@@ -548,8 +579,16 @@ export const utility = {
     if (room && room.game && room.game.players) {
       room.game.players.delete(socket.userId);
     }
+    if (room) {
+      if (room.readyTimerRunning) {
+        this.io.to(roomId).emit("209");
+      }
+      room.readyTimerRunning = false;
+      room.readyTimerToken = null;
+    }
     callback("011");
     this.io.to(roomId).emit("012", socket.userId);
+    this.io.emit("005", this.getRoomList(rooms));
     if (room && room.gameInterval && room.players.size === 0) {
       clearInterval(room.gameInterval);
       room.gameInterval = null;
@@ -558,49 +597,72 @@ export const utility = {
     }
   },
   startRoomReadyTimer: async function (roomId, rooms) {
-    const userNumber = rooms.get(roomId).players.size;
+    const room = rooms.get(roomId);
+    if (!room || room.isPlaying || room.readyTimerRunning) {
+      return;
+    }
+    const userNumber = room.players.size;
+    if (userNumber < room.minPlayer) {
+      return;
+    }
+
+    room.readyTimerRunning = true;
+    const timerToken = `${Date.now()}-${Math.random()}`;
+    room.readyTimerToken = timerToken;
+
     console.log(
       "startRoomReadyTimer chiamato per la stanza " +
         roomId +
         ", tra 5 secondi inizia la partita se tutti i player sono ancora ready",
     );
     for (let i = 5; i >= 0; i--) {
-      await this.io
-        .timeout(1000)
-        .to(roomId)
-        .emit("013", i, (err, response) => {
-          if (err) {
-            console.log(
-              "startRoomReadyTimer annullato per la stanza " +
-                roomId +
-                " perché un player ha tolto il ready",
-            );
-            this.io.to(roomId).emit("209");
-            return;
-          }
-          if (!response) {
-            console.log(
-              "startRoomReadyTimer annullato per la stanza " +
-                roomId +
-                " perché un player ha tolto il ready",
-            );
-            this.io.to(roomId).emit("209");
-            return;
-          }
-        });
-      const room = rooms.get(roomId);
+      const currentRoom = rooms.get(roomId);
+      if (!currentRoom || currentRoom.readyTimerToken !== timerToken || currentRoom.isPlaying) {
+        return;
+      }
+
+      this.io.to(roomId).emit("013", i);
+
+      const refreshedRoom = rooms.get(roomId);
+      if (!refreshedRoom || refreshedRoom.readyTimerToken !== timerToken) {
+        return;
+      }
+
       let allReady = true;
-      room.players.forEach((value, key) => {
+      refreshedRoom.players.forEach((value, key) => {
         if (!value.isReady) {
           allReady = false;
         }
       });
-      if (!allReady || room.players.size !== userNumber) {
+
+      if (
+        !allReady ||
+        refreshedRoom.players.size !== userNumber ||
+        refreshedRoom.players.size < refreshedRoom.minPlayer
+      ) {
+        refreshedRoom.readyTimerRunning = false;
+        refreshedRoom.readyTimerToken = null;
+        console.log(
+          "startRoomReadyTimer annullato per la stanza " +
+            roomId +
+            " perché un player ha tolto il ready / lasciato la stanza",
+        );
         this.io.to(roomId).emit("209");
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
+
+    const finalRoom = rooms.get(roomId);
+    if (!finalRoom || finalRoom.readyTimerToken !== timerToken || finalRoom.isPlaying) {
+      return;
+    }
+
+    finalRoom.readyTimerRunning = false;
+    finalRoom.readyTimerToken = null;
     //qui inizia la partita
     this.startGame(roomId, rooms);
   },

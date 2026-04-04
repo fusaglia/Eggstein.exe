@@ -533,7 +533,7 @@ const ABILITIES = [
     cooldown: 8,
     colors: ["#f12e2e", "#df6b6b", "#330202"],
     soundEffects: ["cero1"],
-    imagesOnScreen: ["cero1"],
+    imagesOnScreen: ["cero2"],
     lastImage: "",
     lastSoundEffect: "",
     volume: 1,
@@ -653,6 +653,7 @@ export default class BootScene extends Phaser.Scene {
       isRespawning: false,
     };
     this.localPlayerAbilities = new Map();
+    this.latestAbilityKeys = null;
     this.localAbilityCooldownEnds = new Map();
     this.hotbarSlotByAbilityKey = new Map();
     this.pendingAudioLoads = new Set();
@@ -906,8 +907,11 @@ export default class BootScene extends Phaser.Scene {
    * - aggiorna la HUD (nomi, icone) e gli hotbar slot mapping
    */
   updateAbilities(abilitiesIndex) {
+    if (!Array.isArray(abilitiesIndex)) return;
+    this.latestAbilityKeys = [...abilitiesIndex];
+
     const currentGame = gameState.currentGame;
-    if (!currentGame || !Array.isArray(abilitiesIndex)) return;
+    if (!currentGame) return;
 
     const defaultAbilityKeys = new Set(
       DEFAULT_ABILITYES.map((ability) =>
@@ -1908,6 +1912,10 @@ export default class BootScene extends Phaser.Scene {
 
   tryAttachAbilityIcon(abilityName, iconSprite) {
     if (!abilityName || !iconSprite) return;
+    const targetSize =
+      Number(iconSprite.getData("hotbarIconSize")) ||
+      Math.max(12, Math.min(iconSprite.displayWidth, iconSprite.displayHeight));
+
     const safeBaseName = String(abilityName)
       .toLowerCase()
       .trim()
@@ -1918,6 +1926,7 @@ export default class BootScene extends Phaser.Scene {
     const textureKey = `${safeBaseName}_hotbarSprite`;
     if (this.textures.exists(textureKey)) {
       iconSprite.setTexture(textureKey);
+      iconSprite.setDisplaySize(targetSize, targetSize);
       return;
     }
 
@@ -1928,6 +1937,7 @@ export default class BootScene extends Phaser.Scene {
     this.load.once(`filecomplete-image-${textureKey}`, () => {
       if (iconSprite && iconSprite.active) {
         iconSprite.setTexture(textureKey);
+        iconSprite.setDisplaySize(targetSize, targetSize);
       }
     });
     this.load.start();
@@ -1993,6 +2003,7 @@ export default class BootScene extends Phaser.Scene {
         .image(x + slotSize * 0.5, hotbarY + slotSize * 0.42, "sensorDot")
         .setDisplaySize(slotSize * 0.55, slotSize * 0.55)
         .setAlpha(0.95);
+      icon.setData("hotbarIconSize", slotSize * 0.55);
 
       const cooldownText = this.add
         .text(x + slotSize * 0.5, hotbarY + slotSize * 0.52, "", {
@@ -2263,12 +2274,12 @@ export default class BootScene extends Phaser.Scene {
    */
   _createSensor(group, wx, wy, r) {
     const s = group.create(wx, wy, "sensorDot");
+    s.setOrigin(0.5, 0.5);
     s.setVisible(false);
-    // body.x = sprite.x - displayOriginX + offsetX
-    // Vogliamo body.x = wx - r  =>  offsetX = displayOriginX - r
-    s.body.setCircle(r);
-    s.body.setOffset(s.displayOriginX - r, s.displayOriginY - r);
+    s.body.setCircle(r, -r, -r);
+    s.body.setAllowGravity(false);
     s.setImmovable(true);
+    s.body.immovable = true;
     s.body.moves = false;
     return s;
   }
@@ -2279,16 +2290,32 @@ export default class BootScene extends Phaser.Scene {
    */
   _createRectSensor(group, wx, wy, w, h) {
     const s = group.create(wx, wy, "sensorDot");
+    s.setOrigin(0.5, 0.5);
     s.setVisible(false);
 
-    // body.x = sprite.x - displayOriginX + offsetX
-    // Vogliamo body.x = wx - w/2  => offsetX = displayOriginX - w/2
-    // (stesso per Y)
-    s.body.setSize(w, h);
-    s.body.setOffset(s.displayOriginX - w * 0.5, s.displayOriginY - h * 0.5);
+    s.body.setSize(w, h, true);
+    s.body.setOffset(-w * 0.5, -h * 0.5);
+    s.body.setAllowGravity(false);
     s.setImmovable(true);
+    s.body.immovable = true;
     s.body.moves = false;
     return s;
+  }
+
+  _applyCharacterVisual(sprite) {
+    if (!sprite) return;
+
+    sprite.setOrigin(0.5, 0.5);
+    sprite.setDisplaySize(44, 44);
+
+    if (sprite.body) {
+      const radius = 18;
+      const offsetX = sprite.displayOriginX - radius;
+      const offsetY = sprite.displayOriginY - radius;
+      sprite.body.setCircle(radius, offsetX, offsetY);
+      sprite.body.setAllowGravity(false);
+      sprite.body.updateFromGameObject();
+    }
   }
 
   /**
@@ -2327,6 +2354,32 @@ export default class BootScene extends Phaser.Scene {
     }
   }
 
+  _configureObstacleBody(sprite, def, scale, kind = "rock") {
+    if (!sprite?.body || !def) return;
+
+    const worldW = Math.max(8, (def.textureW || sprite.displayWidth || 16) * scale);
+    const worldH = Math.max(8, (def.textureH || sprite.displayHeight || 16) * scale);
+
+    if (kind === "bush") {
+      const radius = Math.max(10, Math.min(worldW, worldH) * 0.34);
+      sprite.body.setCircle(radius);
+      sprite.body.setOffset(worldW * 0.5 - radius, worldH * 0.5 - radius);
+      return;
+    }
+
+    if (kind === "rock" && def.textureKey === "rock_obsidian") {
+      const bodyW = Math.max(16, worldW * 0.78);
+      const bodyH = Math.max(16, worldH * 0.72);
+      sprite.body.setSize(bodyW, bodyH);
+      sprite.body.setOffset((worldW - bodyW) * 0.5, (worldH - bodyH) * 0.5);
+      return;
+    }
+
+    const radius = Math.max(10, Math.min(worldW, worldH) * 0.32);
+    sprite.body.setCircle(radius);
+    sprite.body.setOffset(worldW * 0.5 - radius, worldH * 0.5 - radius);
+  }
+
   // ── Factories ────────────────────────────
 
   /**
@@ -2338,9 +2391,11 @@ export default class BootScene extends Phaser.Scene {
     const rock = this.obstacles.create(x, y, def.textureKey);
     rock.setScale(scale);
     rock.setInteractive({ pixelPerfect: true, alphaTolerance: 1 });
-    rock.setImmovable(true);
-    rock.body.moves = false;
-    rock.body.setSize(1, 1);
+    if (rock.body) {
+      rock.setImmovable(true);
+      rock.body.moves = false;
+      rock.body.enable = false;
+    }
     this._spawnSensors(this.rockSensors, def, x, y, scale);
     return rock;
   }
@@ -2354,9 +2409,11 @@ export default class BootScene extends Phaser.Scene {
     const bush = this.obstacles.create(x, y, def.textureKey);
     bush.setScale(scale);
     bush.setInteractive({ pixelPerfect: true, alphaTolerance: 1 });
-    bush.setImmovable(true);
-    bush.body.moves = false;
-    bush.body.setSize(1, 1);
+    if (bush.body) {
+      bush.setImmovable(true);
+      bush.body.moves = false;
+      bush.body.enable = false;
+    }
     this._spawnSensors(this.bushSensors, def, x, y, scale);
     return bush;
   }
@@ -2486,8 +2543,7 @@ export default class BootScene extends Phaser.Scene {
       this.player.setTexture(`skin_${localPlayerData.skin}`);
       this._localSkin = localPlayerData.skin;
     }
-    this.player.setDisplaySize(44, 44);
-    this.player.setCircle(18, 4, 4);
+    this._applyCharacterVisual(this.player);
     this.player.setCollideWorldBounds(true);
     this.player.setMaxVelocity(this.playerSpeed, this.playerSpeed);
     this.player.setDrag(900, 900);
@@ -2567,6 +2623,30 @@ export default class BootScene extends Phaser.Scene {
     });
     this.cursors = this.input.keyboard.createCursorKeys();
     this.input.setDefaultCursor("crosshair");
+    this.input.on("pointermove", (pointer) => {
+      if (!this.player || !pointer) return;
+
+      const worldPoint = pointer.positionToCamera(this.cameras.main);
+      const angle = Phaser.Math.Angle.Between(
+        this.player.x,
+        this.player.y,
+        worldPoint.x,
+        worldPoint.y,
+      );
+
+      this.player.rotation = angle;
+
+      const currentGameState = gameState.currentGame;
+      const hasActiveMatch =
+        currentGameState &&
+        (Array.isArray(currentGameState.players)
+          ? currentGameState.players.some((p) => p?.userId === this.localUserId)
+          : true);
+
+      if (!this.localPlayerState?.isDead && hasActiveMatch) {
+        socketFuncions.emitPlayerDirection(angle);
+      }
+    });
     // Quando clicco con il cursore ottengo sia la posizione world sia,
     // se sto toccando un oggetto, le coordinate locali sulla sua texture.
     this.input.on("pointerdown", (pointer) => {
@@ -2635,6 +2715,9 @@ export default class BootScene extends Phaser.Scene {
     ];
 
     this.createGameHud(currentGame);
+    if (Array.isArray(this.latestAbilityKeys) && this.latestAbilityKeys.length > 0) {
+      this.updateAbilities(this.latestAbilityKeys);
+    }
   }
 
   /**
@@ -2727,7 +2810,7 @@ export default class BootScene extends Phaser.Scene {
             ? `skin_${playerData.skin}`
             : "playerCircle";
           this.player?.setTexture(skinKey);
-          this.player?.setDisplaySize(44, 44);
+          this._applyCharacterVisual(this.player);
           this._localSkin = playerData.skin;
         }
         return;
@@ -2739,6 +2822,7 @@ export default class BootScene extends Phaser.Scene {
           ? `skin_${playerData.skin}`
           : "playerCircle";
         remotePlayer = this.add.sprite(playerData.x, playerData.y, skinKey);
+        remotePlayer.setOrigin(0.5, 0.5);
         remotePlayer.setDisplaySize(44, 44);
         remotePlayer.setDepth(10);
         remotePlayer._currentSkin = playerData.skin;
@@ -2750,6 +2834,7 @@ export default class BootScene extends Phaser.Scene {
             ? `skin_${playerData.skin}`
             : "playerCircle";
           remotePlayer.setTexture(skinKey);
+          remotePlayer.setOrigin(0.5, 0.5);
           remotePlayer.setDisplaySize(44, 44);
           remotePlayer._currentSkin = playerData.skin;
         }
@@ -2831,6 +2916,11 @@ export default class BootScene extends Phaser.Scene {
           : Math.abs(Phaser.Math.Angle.Wrap(angle - this.lastSentDirection));
 
       this.player.rotation = angle;
+
+      if (!this.localPlayerState.isDead && hasActiveMatch) {
+        // Aim live: aggiorniamo il server ogni frame con la direzione corrente del cursore.
+        socketFuncions.emitPlayerDirection(angle);
+      }
 
       const distanceSinceLastSend =
         this.lastSentX === null || this.lastSentY === null

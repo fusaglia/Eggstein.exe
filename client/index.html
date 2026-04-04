@@ -16,6 +16,7 @@
     <!-- Titolo del gioco, poco sopra al centro dello schermo-->
     <div id="gameTitle">
       <h1>EggStein.exe</h1>
+      <p>Chaos arena multiplayer</p>
     </div>
 
     <!-- USER CONNECTED ON MOBILE WARNING (GAME IS ONLY PLAYABLE VIA PC) !!! -->
@@ -35,51 +36,57 @@
     </div>
 
     <!-- USERNAME CHANGE SCREEN-->
-    <div id="userNameChoosingScreen" class="screen hidden">
+    <div id="userNameChoosingScreen" class="screen hidden card compact-card">
       <h1>Choose your Username</h1>
-      <input id="userNameInput" type="text" placeholder="userName" />
-      <button id="userNameBtn">Cambia UserName</button>
+      <p class="screen-subtitle">Scegli un nome unico per entrare in lobby.</p>
+      <input id="userNameInput" type="text" placeholder="userName" maxlength="21" />
+      <button id="userNameBtn">Conferma UserName</button>
     </div>
 
     <!-- 🟦 LOBBY SCREEN -->
     <div id="lobbyScreen" class="screen hidden card room">
-      <div class="">
-        <h2>Stanze</h2>
+      <section class="lobby-panel">
+        <h2>Stanze disponibili</h2>
+        <p class="screen-subtitle">Le stanze già in partita non sono visibili.</p>
         <input id="roomIdInput" type="text" placeholder="ID stanza" />
-        <button id="joinBtn">Entra nella Stanza</button>
+        <button id="joinBtn">Entra nella stanza</button>
         <ul id="availableRoomsList"></ul>
-      </div>
+      </section>
 
-      <div class="">
+      <section class="lobby-panel">
         <h2>Crea Stanza</h2>
+        <p class="screen-subtitle">Configura una stanza privata o pubblica.</p>
         <input id="CreateRoomIdInput" type="text" placeholder="ID stanza" />
-        <button id="createBtn">Crea Stanza</button>
-        <p id="createRoomError" style="color:#ff6b6b;margin:4px 0;min-height:1.2em;font-size:0.92em;"></p>
+        <button id="createBtn">Crea stanza</button>
+        <p id="createRoomError"></p>
         <div id="createRoomOptions">
           <input id="CreateRoomMaxPlayers" type="number" min="2" max="8" placeholder="Max players" />
           <input id="CreateRoomPassword" type="text" placeholder="Eventuale password" />
-          <input id="CreateRoomMap" type="radio" placeholder="Mappa" value="mappa1" />
+          <label class="map-choice" for="CreateRoomMap">Mappa base</label>
+          <input id="CreateRoomMap" type="radio" placeholder="Mappa" value="mappa1" checked />
         </div>
-      </div>
+      </section>
     </div>
 
-    <div id="passwordCard" class="screen hidden card room">
+    <div id="passwordCard" class="screen hidden card compact-card">
       <h2>Stanza protetta da password</h2>
       <h3 class="hidden" id="passwordError">Password sbagliata</h3>
       <input id="passwordInput" type="text" placeholder="Password stanza" />
       <button id="passwordSubmitBtn">Invia Password</button>
     </div>
 
-    <!-- 🟩 ROOM SCREEN --> 
-    <div id="roomScreen" class="screen hidden">
+    <!-- 🟩 ROOM SCREEN -->
+    <div id="roomScreen" class="screen hidden card compact-card">
       <h2>Stanza: <span id="currentRoomName"></span></h2>
       <p id="roomStatus">In attesa che gli altri giocatori mettano pronto</p>
       <p id="startGameTimer" class="hidden">Inizio partita tra 5 secondi...</p>
       <!-- Lista dei giocatori -->
       <ul id="playersList"></ul>
-      
-      <button id="readyBtn" class="unready">Unready</button>
-      <button id="leaveRoomBtn">Abbandona Stanza</button>
+
+      <div class="room-actions">
+        <button id="readyBtn" class="unready">Unready</button>
+        <button id="leaveRoomBtn">Abbandona stanza</button>
+      </div>
     </div>
 
     <!-- 🟥 GAME SCREEN -->

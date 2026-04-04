@@ -131,7 +131,9 @@ export const socketFuncions = {
       console.log("messaggio 013 ricevuto");
       console.log("Secondi rimanenti: " + second);
       visual.showStartCountdown(second);
-      callback(this.isReady);
+      if (typeof callback === "function") {
+        callback(this.isReady);
+      }
     });
     tSocket.on("209", () => {
       console.log("messaggio 209 ricevuto");
@@ -210,6 +212,9 @@ export const socketFuncions = {
               visual.hideElement(visual.elements.passwordCard);
               visual.showScreen(visual.screens.roomScreen);
               break;
+            case "204":
+              console.log("stanza non disponibile o già in partita");
+              break;
             case "206":
               console.log("password sbagliata");
               visual.showElement(visual.elements.passwordCard);
@@ -267,9 +272,9 @@ export const socketFuncions = {
   emitPlayerTransform: function (payload) {
     this.socket.emit("107", payload);
   },
-  emitAbilityInput: function (index) {
-    console.log("emitAbilityInput: " + index);
-    this.socket.emit("109", index);
+  emitAbilityInput: function (index, direction) {
+    console.log("emitAbilityInput:", index, "direction:", direction);
+    this.socket.emit("109", index, direction);
   },
   emitPlayerDirection: function (direction) {
     this.socket.emit("108", direction);

@@ -29,12 +29,13 @@ const stanza = {};
 //game utils
 const config = {
   type: Phaser.AUTO,
+  parent: "gameScreen",
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: "#000000",
   physics: {
     default: "arcade",
-    arcade: { gravity: { y: 0 }, debug: true },
+    arcade: { gravity: { y: 0 }, debug: false },
   },
   fps: {
     target: 60,

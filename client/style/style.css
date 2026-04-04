@@ -1,230 +1,360 @@
-body {
-  margin: 0;
-  overflow: hidden;
-  background: white;
-  font-family: Arial, sans-serif;
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Bricolage+Grotesque:wght@600;800&display=swap");
+
+:root {
+  --bg-deep: #0d1218;
+  --bg-mid: #15202e;
+  --bg-glow: #1f3148;
+  --card: rgba(13, 19, 30, 0.8);
+  --card-border: rgba(147, 196, 255, 0.3);
+  --text-main: #f5f9ff;
+  --text-soft: #a7bfdc;
+  --accent: #4dd8a9;
+  --accent-2: #ffb347;
+  --danger: #ff6b6b;
+  --shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
 }
 
-body * {
-  background: #aaa;
+* {
+  box-sizing: border-box;
 }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 20%, rgba(77, 216, 169, 0.2), transparent 44%),
+    radial-gradient(circle at 85% 82%, rgba(255, 179, 71, 0.2), transparent 48%),
+    linear-gradient(140deg, var(--bg-deep), var(--bg-mid) 55%, #0f1c2f 100%);
+  color: var(--text-main);
+  font-family: "Space Grotesk", sans-serif;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(40px);
+}
+
+body::before {
+  width: 42vw;
+  height: 42vw;
+  top: -10vw;
+  left: -6vw;
+  background: rgba(77, 216, 169, 0.14);
+}
+
+body::after {
+  width: 38vw;
+  height: 38vw;
+  bottom: -12vw;
+  right: -8vw;
+  background: rgba(255, 179, 71, 0.16);
+}
+
 canvas {
   display: block;
 }
 
-.room-input-group {
-  margin-bottom: 15px;
-}
-
-.room-input-group label {
-  display: block;
-  color: #fff;
-  margin-bottom: 5px;
-  font-size: 12px;
-}
-
-.ready {
-  background-color: #2d5016;
-}
-
-.unready {
-  background-color: #1a3a52;
-}
-
-#roomInput,
-#joinRoomInput {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 8px;
-  border: 1px solid #666;
-  background: #222;
-  color: #fff;
-  border-radius: 4px;
-  box-sizing: border-box;
-  font-size: 12px;
-}
-
-#roomInput:focus,
-#joinRoomInput:focus {
-  outline: none;
-  border-color: #fff;
-  background: #333;
-}
-
-.button-group {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-button {
-  flex: 1;
-  padding: 10px;
-  background: #444;
-  color: #fff;
-  border: 1px solid #666;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: bold;
-  transition: all 0.3s ease;
-}
-
-button:hover {
-  background: #555;
-  border-color: #fff;
-}
-
-button:active {
-  background: #666;
-}
-
-#createBtn {
-  background: #2d5016;
-}
-
-#createBtn:hover {
-  background: #3a6b1f;
-}
-
-#joinBtn {
-  background: #1a3a52;
-}
-
-#joinBtn:hover {
-  background: #2a5070;
-}
-
-#roomStatus {
-  color: #aaa;
-  font-size: 11px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #555;
-}
-
-.visible {
-  visibility: visible;
-  position: relative;
-}
-
 .hidden {
-    visibility: hidden;
-    position: absolute;
+  display: none !important;
+}
+
+.screen {
+  width: min(1120px, calc(100vw - 44px));
+  margin: 120px auto 0;
 }
 
 #gameTitle {
   position: fixed;
-  top: 20px;
+  top: 24px;
   left: 50%;
   transform: translateX(-50%);
+  text-align: center;
   z-index: 1000;
+  pointer-events: none;
+}
+
+#gameTitle h1 {
+  margin: 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(2.1rem, 4vw, 3.2rem);
+  letter-spacing: 0.03em;
+  color: #f8fbff;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+#gameTitle p {
+  margin: 0.2rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .card {
-  border: 1px solid #000000;
-  border-radius: 8px;
-  padding: 20px;
-  margin: 20px;
-  margin-top: 10%;
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 22px;
+  backdrop-filter: blur(12px);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.compact-card {
+  width: min(560px, calc(100vw - 44px));
+}
+
+#debugHeader {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 290px;
+  z-index: 3000;
+  display: flex;
+  gap: 8px;
+}
+
+#debugHeader button {
+  flex: 1;
+}
+
+.screen-subtitle {
+  margin: -2px 0 14px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
 }
 
 #lobbyScreen {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
-  gap: 16px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 18px;
 }
 
-#lobbyScreen > div {
-  border: 1px solid #3f3f3f;
-  border-radius: 10px;
+.lobby-panel {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
   padding: 16px;
-  background: #2f2f2f;
+  background:
+    linear-gradient(175deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
 }
 
-#lobbyScreen h2 {
-  margin: 0 0 12px;
-  font-size: 18px;
-  color: #ffffff;
+h1,
+h2,
+h3 {
+  margin: 0 0 10px;
+  font-family: "Bricolage Grotesque", sans-serif;
 }
 
-#lobbyScreen input[type="text"], #lobbyScreen input[type="number"] {
+input[type="text"],
+input[type="number"] {
   width: 100%;
-  padding: 10px;
   margin-bottom: 10px;
-  border: 1px solid #6c6c6c;
-  border-radius: 6px;
-  box-sizing: border-box;
-  background: #1f1f1f;
-  color: #fff;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(9, 14, 23, 0.78);
+  color: var(--text-main);
+  font-size: 0.95rem;
 }
 
-#lobbyScreen input[type="text"]:focus, #lobbyScreen input[type="number"]:focus {
+input[type="text"]:focus,
+input[type="number"]:focus {
   outline: none;
-  border-color: #9ad1ff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(77, 216, 169, 0.18);
 }
 
-#lobbyScreen #joinBtn,
-#lobbyScreen #createBtn {
+button {
   width: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: #0c1520;
+  font-size: 0.93rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), #7ee8cb);
+  transition: transform 0.16s ease, filter 0.16s ease;
 }
 
-#lobbyScreen #availableRoomsList {
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#joinBtn {
+  background: linear-gradient(135deg, #7fc8ff, #4ea5e9);
+  color: #08121f;
+}
+
+#createBtn {
+  background: linear-gradient(135deg, var(--accent-2), #ffcc80);
+  color: #1d1306;
+}
+
+.ready {
+  background: linear-gradient(135deg, #74ec7b, #26b84b);
+  color: #041206;
+}
+
+.unready {
+  background: linear-gradient(135deg, #7fc8ff, #4ea5e9);
+  color: #08121f;
+}
+
+#createRoomError,
+#passwordError {
+  color: var(--danger);
+  margin: 4px 0 10px;
+  min-height: 1.2em;
+  font-size: 0.9rem;
+}
+
+#createRoomOptions {
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+}
+
+.map-choice {
+  display: block;
+  margin: 6px 0 8px;
+  color: var(--text-soft);
+  font-size: 0.87rem;
+}
+
+#CreateRoomMap {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+#availableRoomsList {
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
-  max-height: 320px;
+  max-height: 350px;
   overflow-y: auto;
-  border: 1px solid #4a4a4a;
-  border-radius: 6px;
-  background: #242424;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(7, 11, 18, 0.75);
 }
 
-#lobbyScreen #availableRoomsList:empty::before {
+#availableRoomsList:empty::before {
   content: "Nessuna stanza disponibile";
   display: block;
-  padding: 12px;
-  color: #bdbdbd;
-  font-style: italic;
+  padding: 14px;
+  color: var(--text-soft);
 }
 
-#lobbyScreen #availableRoomsList li {
-  padding: 10px 12px;
-  border-bottom: 1px solid #3b3b3b;
+#availableRoomsList li {
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.93rem;
 }
 
-#lobbyScreen #availableRoomsList li.clickable-room {
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-#lobbyScreen #availableRoomsList li.clickable-room:hover {
-  background: #313131;
-}
-
-#lobbyScreen #availableRoomsList li.clickable-room:focus {
-  outline: 2px solid #9ad1ff;
-  outline-offset: -2px;
-  background: #313131;
-}
-
-#lobbyScreen #availableRoomsList li:last-child {
+#availableRoomsList li:last-child {
   border-bottom: none;
 }
 
-#lobbyScreen #createRoomOptions {
-  margin-top: 12px;
-  min-height: 110px;
-  border: 1px dashed #5f5f5f;
-  border-radius: 6px;
-  background: #262626;
+#availableRoomsList li.clickable-room {
+  cursor: pointer;
 }
 
+#availableRoomsList li.clickable-room:hover,
+#availableRoomsList li.clickable-room:focus {
+  background: rgba(255, 255, 255, 0.07);
+  outline: none;
+}
 
+#roomScreen {
+  max-width: 700px;
+}
 
-@media (max-width: 900px) {
+#roomStatus {
+  margin: 2px 0 8px;
+  color: var(--text-soft);
+}
+
+#startGameTimer {
+  margin: 0 0 12px;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+#playersList {
+  margin: 10px 0 14px;
+  padding: 0;
+  list-style: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(7, 11, 18, 0.65);
+  overflow: hidden;
+}
+
+#playersList li {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+#playersList li:last-child {
+  border-bottom: none;
+}
+
+.room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#leaveRoomBtn {
+  background: linear-gradient(135deg, #ff928b, #f34f45);
+  color: #240707;
+}
+
+#gameScreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  cursor: crosshair;
+}
+
+#gameScreen canvas {
+  cursor: crosshair !important;
+}
+
+@media (max-width: 920px) {
+  body {
+    overflow: auto;
+  }
+
+  .screen {
+    margin-top: 98px;
+  }
+
   #lobbyScreen {
+    grid-template-columns: 1fr;
+  }
+
+  .room-actions {
     grid-template-columns: 1fr;
   }
 }

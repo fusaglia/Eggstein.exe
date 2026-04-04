@@ -1,0 +1,4 @@
+Roba da sistemare: 
+1. il nome della bilità non vengono mostrate da client 
+2. la stanza rimane visibile anche quando parte il game, e se qualcuno entra nella stanza e mette pronto, si riapre la procedura di avviamento del game (con ready e i 5 secondo), e alla fine fa ripartire il game per tutti nella stanza. servirebbe che la stanza sparisse dalle stanze disposibili, magari le stanze con isPlayng true non vengono mandate ai client che devono scegliere le stanze
+3. migliorare la grafica dell'index, con la scelta delle stanze, la creazione e l'attesa del game. 
