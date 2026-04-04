@@ -13,9 +13,12 @@ const CHARACTER_SKINS = [
   "Jogo",
   "ReggieSon",
   "SukunaGuguGaga",
-  "Thukuna1",
-  "Thukuna2",
+  "thukuna1",
+  "Thukuna3",
   "YouAreSoRight",
+  "gojo3",
+  "GojoMog",
+  "Mahoraga"
 ];
 
 function pickRandomSkin(excludeSkin) {
