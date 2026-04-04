@@ -558,6 +558,38 @@ export const utility = {
     if (room.isPlaying) {
       socket.emit("015", this.toClientGame(room.game));
       socket.emit("014", roomId);
+
+      let gamePlayer = null;
+      const gamePlayers = room?.game?.players;
+      if (gamePlayers instanceof Map) {
+        gamePlayer = gamePlayers.get(socket.userId) || null;
+        if (!gamePlayer) {
+          for (const player of gamePlayers.values()) {
+            if (player?.userId === socket.userId) {
+              gamePlayer = player;
+              break;
+            }
+          }
+        }
+      }
+
+      const abilitiesIndex =
+        gamePlayer?.abilities instanceof Map
+          ? Array.from(gamePlayer.abilities.keys()).map((key) =>
+              String(key).toUpperCase(),
+            )
+          : [];
+
+      if (abilitiesIndex.length > 0) {
+        socket.emit("019", abilitiesIndex);
+      } else {
+        console.log(
+          "riconnessione in game senza abilities trovate per user " +
+            socket.userId +
+            " nella stanza " +
+            roomId,
+        );
+      }
       return;
     }
   },
