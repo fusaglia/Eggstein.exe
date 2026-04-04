@@ -42,7 +42,7 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 | **019**|`ecco le tue abilità`|`[abilitesIndexs]`|
 | **020**|`sei morto blud`|`vuoto`|
 | **021**|`ecco il tuo respawn point`|`<spawnX>, <spawnY>`|
-| **021**|`messaggio di fine partite`|`<winnerName>`|
+| **022**|`messaggio di fine partite`|`<winnerName>`|
 
 ---
 
