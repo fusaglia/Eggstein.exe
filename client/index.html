@@ -7,11 +7,6 @@
     <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
   </head>
   <body>
-    <!-- DEBUG -->
-    <header class="hidden" id="debugHeader">
-      <button id="cancUserNameBtn">Cancella userName</button
-      ><button id="cancUserIdBtn">Cancella userId</button>
-    </header>
 
     <!-- Titolo del gioco, poco sopra al centro dello schermo-->
     <div id="gameTitle">
@@ -20,11 +15,14 @@
     </div>
 
     <!-- USER CONNECTED ON MOBILE WARNING (GAME IS ONLY PLAYABLE VIA PC) !!! -->
-    <div id="userMobileWarning" class="hidden">
-      <p>
-        Attenzione: per giocare è necessario utilizzare un dispositivo desktop o
-        laptop.
-      </p>
+    <div id="userMobileWarning" class="hidden error-modal">
+      <div class="error-modal-content">
+        <h2>Dispositivo non supportato</h2>
+        <p>
+          Attenzione: per giocare è necessario utilizzare un dispositivo desktop o
+          laptop.
+        </p>
+      </div>
     </div>
 
     <!-- USERID ALREADY CONNECTED WARNING !!! -->

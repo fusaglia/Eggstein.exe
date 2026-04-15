@@ -18,6 +18,7 @@ export const visual = {
     userNameInput: document.getElementById("userNameInput"),
     userNameBtn: document.getElementById("userNameBtn"),
 
+
     //lobbyScreen
     createRoomBtn: document.getElementById("createBtn"),
     joinRoomBtn: document.getElementById("joinBtn"),

@@ -1,12 +1,9 @@
-import express, { response } from "express";
+import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { utility } from "./utilityFuncions.js";
 import { fileURLToPath } from "url";
-import { callbackify } from "util";
-import { isReadable } from "stream";
-import e from "express";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +37,7 @@ const maxPlayer = 8;
 io.on("connection", (socket) => {
   //connesione di un client
   {
-    let randomJoke = ["negro", "nigga", "jew", "ebreo", "goym"];
+    let randomJoke = ["negro", "nigga", "jew", "ebreo", "goyim"];
     console.log(
       "Un " +
         randomJoke[Math.floor(Math.random() * randomJoke.length)] +
@@ -50,20 +47,27 @@ io.on("connection", (socket) => {
   }
   socket.emit("001");
 
-  socket.on("101", (userId, userName) => {
+  const authenticateUser = (userId, userName) => {
     console.log("messaggio 101 ricevuto da socket: " + socket.id);
     if (userId === undefined || userId === null || userId === "") {
       socket.emit("208");
       console.log("messaggio 208 mandato");
-      return;
+      return false;
     }
-    if (!utility.checkUserName(userName) || userName == userId.substring(0, 10)) {
+    const defaultUserNameA = userId.substring(0, 10);
+    const defaultUserNameB = "user" + userId.substring(0, 10);
+    if (
+      !utility.checkUserName(userName) ||
+      userName == defaultUserNameA ||
+      userName == defaultUserNameB
+    ) {
+      socket.pendingUserId = userId;
       socket.emit("202");
       console.log(
         "lo userName " + userName + " dello user " + userId + " non è valido",
       );
       console.log("messaggio 202 mandato");
-      return;
+      return false;
     }
     //se uno user con lo stesso userId si è gia collegato in precendeza
     if (users.has(userId)) {
@@ -97,13 +101,14 @@ io.on("connection", (socket) => {
               minPlayer,
               maxPlayer,
             );
+            socket.pendingUserId = null;
             utility.handleReconnection(userId, socket, rooms, users);
           } else {
             socket.emit("201");
             console.log("messaggio 201 mandato");
           }
         });
-        return;
+        return true;
       } else {
         //se lo user non è online
         //se il client appena collegato ha sia lo stesso userId che lo stesso userName
@@ -131,13 +136,14 @@ io.on("connection", (socket) => {
             minPlayer,
             maxPlayer,
           );
+          socket.pendingUserId = null;
           utility.handleReconnection(userId, socket, rooms, users);
-          return;
+          return true;
         } else {
           //è un user diverso con lo stesso userId
           socket.emit("201");
           console.log("messaggio 201 mandato");
-          return;
+          return false;
         }
       }
     } else {
@@ -158,8 +164,40 @@ io.on("connection", (socket) => {
         minPlayer,
         maxPlayer,
       );
+      socket.pendingUserId = null;
       utility.handleFirstConnection(userId);
+      return true;
+    }
+  };
+
+  socket.on("101", (userId, userName) => {
+    authenticateUser(userId, userName);
+  });
+
+  socket.on("102", (userName) => {
+    // Supporta cambio nome anche prima del completamento auth (dopo 202).
+    if (socket.userId) return;
+
+    const pendingUserId = socket.pendingUserId;
+    if (!pendingUserId) {
+      socket.emit("208");
+      console.log(
+        "messaggio 208 mandato: ricevuto 102 senza pendingUserId su socket " +
+          socket.id,
+      );
       return;
+    }
+
+    console.log(
+      "messaggio 102 pre-auth ricevuto da socket " +
+        socket.id +
+        " per userId " +
+        pendingUserId,
+    );
+    const authenticated = authenticateUser(pendingUserId, userName);
+    if (authenticated && socket.userId) {
+      socket.emit("003");
+      console.log("messaggo 003 mandato");
     }
   });
   socket.on("disconnect", (reason) => {

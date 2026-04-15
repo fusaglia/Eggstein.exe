@@ -13,11 +13,41 @@ generateUser();
 console.log("UserID locale:", userId);
 console.log("UserName locale:", userName);
 
-// Connessione al server
-const socket = socketFuncions.startConnection(); // (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
+
 
 // Gioco
 const stanza = {};
+
+// controllo se il client è da telefono
+function isMobileDevice() {
+  // Combina metodi più affidabili:
+  // 1. maxTouchPoints: dispositivi mobili hanno >2 touch points
+  // 2. matchMedia: CSS media query per dispositivi touch senza hover
+  // 3. User agent come fallback
+  return (
+    navigator.maxTouchPoints > 2 ||
+    window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  );
+}
+
+if (isMobileDevice()) {
+  visual.showScreen(visual.screens.userMobileWarning);
+  //fermata il refresh della pagina
+  window.addEventListener("beforeunload", function (e) {
+    e.preventDefault();
+    e.returnValue = "";
+  });
+  //blocca l'eseguzione del resto del file (che contiene la logica del gioco) se è un dispositivo mobile
+  throw new Error("Dispositivo mobile non supportato");
+} else 
+{
+  // Connessione al server
+const socket = socketFuncions.startConnection(); // (questa avviene in WebSocketClient.js dopo che l'utente ha scelto il nome)
+}
+
+
+// Funzione per gestire la riconnessione o la nuova connessione
 
 // Schermate
 
@@ -48,40 +78,20 @@ let game = null;
 let pendingAbilitiesIndex = null;
 // resize
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// DEBUG
-const cancUserNameBtn = document.getElementById("cancUserNameBtn");
-const cancUserIdBtn = document.getElementById("cancUserIdBtn");
-const debugHeader = document.getElementById("debugHeader");
-
-cancUserIdBtn.addEventListener("click", (event) => {
-  userId = "";
-  localStorage.removeItem("userId");
-  //localStorage.removeItem("userName");
-});
-
-cancUserNameBtn.addEventListener("click", (event) => {
-  userName = "";
-  localStorage.removeItem("userName");
-});
-
-//quando si clicca F12 mostra i bottoni per cancellare userId e userName
-window.addEventListener("keydown", (event) => {
-  if (event.key === "F12") {
-    debugHeader.classList.toggle("hidden");
-  }
-});
-
 function generateUser() {
   utility.generateUser();
-  if (userId && userName == "user" + userId.substring(0, 10)) {
+
+  // Ricarica i valori dopo generateUser() li ha impostati.
+  userId = localStorage.getItem("userId");
+  userName = localStorage.getItem("userName");
+
+  const defaultNameA = userId ? userId.substring(0, 10) : "";
+  const defaultNameB = userId ? "user" + userId.substring(0, 10) : "";
+  if (userId && (userName === defaultNameA || userName === defaultNameB)) {
     visual.showScreen(visual.screens.userNameChoosingScreen);
   } else {
     visual.showScreen(visual.screens.lobbyScreen);
   }
-  // Ricarica i valori dopo generateUser() li ha impostati
-  userId = localStorage.getItem("userId");
-  userName = localStorage.getItem("userName");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -189,13 +199,13 @@ export const mainObjects = {
     playersList.forEach((playerData) => {
       if (!playerData || !playerData.userId) return;
       stanza.game.playersMap.set(playerData.userId, {
-          userId: playerData.userId,
-          userName: playerData.userName,
-          x: playerData.x,
-          y: playerData.y,
-          hp: playerData.hp,
-          direction: playerData.direction,
-          attributes: playerData.attributes,
+        userId: playerData.userId,
+        userName: playerData.userName,
+        x: playerData.x,
+        y: playerData.y,
+        hp: playerData.hp,
+        direction: playerData.direction,
+        attributes: playerData.attributes,
       });
     });
     const gameScene = game?.scene?.getScene("BootScene");
@@ -272,7 +282,7 @@ export const mainObjects = {
     // Suono vittoria
     const audio = new Audio("assets/sounds/victory-royale.mp3");
     audio.volume = 0.8;
-    audio.play().catch(() => {});
+    audio.play().catch(() => { });
 
     // Torna alla lobby dopo 6 secondi
     setTimeout(() => {

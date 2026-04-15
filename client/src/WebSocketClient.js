@@ -1,11 +1,191 @@
 import { utility } from "./utilityFunctions.js";
 import { visual } from "./htmlCallFunctions.js";
 import { mainObjects } from "./main.js";
-import BootScene from "./scenes/BootScene.js";
+
+const AUDIO_EXTENSIONS = ["mp3", "ogg", "m4a", "aac", "wav"];
+const IMAGE_EXTENSIONS = ["png", "webp", "jpg", "jpeg"];
+
+function buildAssetNameCandidates(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  const words = raw.split(/\s+/).filter(Boolean);
+  const camel = words
+    .map((word, index) => {
+      if (index === 0) return word.charAt(0).toLowerCase() + word.slice(1);
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join("");
+
+  const underscored = raw
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_\-]/gi, "");
+
+  const compact = raw
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9_\-]/gi, "");
+
+  const noDiacriticsCamel = words
+    .map((word, index) => {
+      const normalized = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (index === 0) {
+        return normalized.charAt(0).toLowerCase() + normalized.slice(1);
+      }
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    })
+    .join("");
+
+  return Array.from(
+    new Set([raw, camel, underscored, compact, noDiacriticsCamel].filter(Boolean)),
+  );
+}
+
+function warmImage(path) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = path;
+  });
+}
+
 export const socketFuncions = {
   socket: null,
   roomList: null,
   isReady: false,
+  loadedAssetPaths: new Set(),
+  pendingAssetLoads: new Map(),
+  _warmAssetPath: function (path, kind) {
+    if (!path) return Promise.resolve(false);
+    if (this.loadedAssetPaths.has(path)) return Promise.resolve(true);
+
+    const pending = this.pendingAssetLoads.get(path);
+    if (pending) return pending;
+
+    const loadPromise = (kind === "image" ? warmImage(path) : fetch(path, { cache: "force-cache" })
+      .then((response) => response.ok)
+      .catch(() => false)
+    )
+      .then((ok) => {
+        if (ok) this.loadedAssetPaths.add(path);
+        this.pendingAssetLoads.delete(path);
+        return ok;
+      })
+      .catch(() => {
+        this.pendingAssetLoads.delete(path);
+        return false;
+      });
+
+    this.pendingAssetLoads.set(path, loadPromise);
+    return loadPromise;
+  },
+  warmupRoomCountdownAssets: function () {
+    const abilityDefinitions = [
+      {
+        name: "Dash",
+        soundEffects: ["sonido1"],
+      },
+      {
+        name: "Granitè blast",
+        soundEffects: [],
+        voiceEffects: [
+          "granitBlast_voice1",
+          "granitBlast_voice2",
+          "granitBlast_voice3",
+        ],
+        imagesOnScreen: ["JaneJuliet", "JohnRabbit", "PotentialMan"],
+      },
+      {
+        name: "Cero",
+        soundEffects: ["cero1"],
+        imagesOnScreen: ["cero2", "gojo3", "DontYouHaveaHumanHeart"],
+      },
+      {
+        name: "Hollow Purple",
+        soundEffects: ["hollowPurple1"],
+        voiceEffects: ["hollowPurple1"],
+        imagesOnScreen: [
+          "hollowPurple1",
+          "hollowPurple2",
+          "hollowPurple3",
+          "PesceGojo",
+          "lobotomy-kaisen-jjk",
+        ],
+      },
+      {
+        name: "Dismantle",
+        soundEffects: ["sukuna1"],
+        imagesOnScreen: [
+          "dismantle1",
+          "dismantle2",
+          "sukuna1",
+          "sukuna2",
+          "sukuna4",
+          "sukuna3",
+          "SukunaPeter",
+          "Thukuna3",
+        ],
+      },
+    ];
+
+    const ambientAudio = [
+      "backgroundMusic",
+      "lobotomy-sound-effect",
+      "pump-shotgun-fortnite",
+      "jumpScare",
+    ];
+
+    const soundClips = new Set();
+    const imageClips = new Set();
+
+    abilityDefinitions.forEach((ability) => {
+      buildAssetNameCandidates(ability.name).forEach((candidate) => {
+        soundClips.add(candidate);
+      });
+
+      (ability.soundEffects || []).forEach((clip) => {
+        buildAssetNameCandidates(clip).forEach((candidate) => {
+          soundClips.add(candidate);
+        });
+      });
+
+      (ability.voiceEffects || []).forEach((clip) => {
+        buildAssetNameCandidates(clip).forEach((candidate) => {
+          soundClips.add(candidate);
+        });
+      });
+
+      (ability.imagesOnScreen || []).forEach((clip) => {
+        buildAssetNameCandidates(clip).forEach((candidate) => {
+          imageClips.add(candidate);
+        });
+      });
+    });
+
+    ambientAudio.forEach((clip) => {
+      buildAssetNameCandidates(clip).forEach((candidate) => {
+        soundClips.add(candidate);
+      });
+    });
+
+    const warmPromises = [];
+
+    soundClips.forEach((baseName) => {
+      AUDIO_EXTENSIONS.forEach((ext) => {
+        warmPromises.push(this._warmAssetPath(`assets/sounds/${baseName}.${ext}`, "audio"));
+      });
+    });
+
+    imageClips.forEach((baseName) => {
+      IMAGE_EXTENSIONS.forEach((ext) => {
+        warmPromises.push(this._warmAssetPath(`assets/images/${baseName}.${ext}`, "image"));
+      });
+    });
+
+    Promise.allSettled(warmPromises);
+  },
   startConnection: function () {
     // Connessione al server
     const tSocket = io();
@@ -42,8 +222,8 @@ export const socketFuncions = {
 
       tSocket.on("202", () => {
         console.log("messaggio 202 ricevuto");
-        // Username non valido: per ora riusa la schermata warning esistente.
-        visual.showScreen(visual.screens.userIdWarning);
+        // Username non valido: forza il cambio nome immediato.
+        visual.showScreen(visual.screens.userNameChoosingScreen);
       });
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,6 +310,7 @@ export const socketFuncions = {
     tSocket.on("013", (second, callback) => {
       console.log("messaggio 013 ricevuto");
       console.log("Secondi rimanenti: " + second);
+      this.warmupRoomCountdownAssets();
       visual.showStartCountdown(second);
       if (typeof callback === "function") {
         callback(this.isReady);
@@ -142,6 +323,7 @@ export const socketFuncions = {
     });
     tSocket.on("014", () => {
       console.log("messaggio 014 ricevuto");
+      this.warmupRoomCountdownAssets();
       visual.showScreen(visual.screens.gameScreen);
       visual.hideElement(visual.elements.gameTitle);
       visual.hideElement(visual.elements.debugHeader);

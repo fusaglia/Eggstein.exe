@@ -504,7 +504,7 @@ const ABILITIES = [
     soundEffects: [],
     lastImage: "",
     lastSoundEffect: "",
-    imagesOnScreen: ["JaneJuliet", "JohnRabbit", "PotentialMan"],
+    imagesOnScreen: ["JaneJuliet", "JohnRabbit", "PotentialMan", "Alfredo1", "AlfreNico1", "Alfredo3"],
     volume: 0.3,
     voiceEffects: [
       "granitBlast_voice1",
@@ -533,7 +533,7 @@ const ABILITIES = [
     cooldown: 8,
     colors: ["#f12e2e", "#df6b6b", "#330202"],
     soundEffects: ["cero1"],
-    imagesOnScreen: ["cero2", "gojo3", "DontYouHaveaHumanHeart"],
+    imagesOnScreen: ["cero2", "gojo3", "DontYouHaveaHumanHeart", "Alfredo2", "Alfredo4", "AlfreVassa", "Vassalli1"],
     lastImage: "",
     lastSoundEffect: "",
     volume: 1,
@@ -592,7 +592,7 @@ const ABILITIES = [
     cooldown: 12,
     speed: 4000,
     colors: ["#000000", "#ff0000"],
-    soundEffects: [],
+    soundEffects: ["sukuna1"],
     lastImage: "",
     lastSoundEffect: "",
     imagesOnScreen: ["dismantle1", "dismantle2", "sukuna1", "sukuna2","sukuna4", "sukuna3", "SukunaPeter", "Thukuna3"],
@@ -1028,12 +1028,12 @@ export default class BootScene extends Phaser.Scene {
 
     const candidates = this._abilityNameToAudioCandidates(baseName);
     if (candidates.length === 0) return;
-    const supportedExtensions = ["mp3", "ogg", "m4a", "aac", "wav"];
+    const supportedExtensions = ["mp3"];
 
     const tryPlayCandidate = (idx) => {
       if (idx >= candidates.length) return;
       const candidate = String(candidates[idx]).replace(
-        /\.(ogg|mp3|m4a|aac|wav)$/i,
+        /\.mp3$/i,
         "",
       );
       const tryAudioExt = (extIdx) => {
@@ -1286,12 +1286,12 @@ export default class BootScene extends Phaser.Scene {
       candidates,
     );
     if (candidates.length === 0) return;
-    const supportedExtensions = ["png", "webp", "jpg", "jpeg"];
+    const supportedExtensions = ["png"];
 
     const tryCandidate = (idx) => {
       if (idx >= candidates.length) return;
       const candidate = String(candidates[idx]).replace(
-        /\.(png|webp|jpg|jpeg)$/i,
+        /\.png$/i,
         "",
       );
 
@@ -2073,12 +2073,27 @@ export default class BootScene extends Phaser.Scene {
     this._createLeaderboard();
 
     // Timer conta alla rovescia 5 minuti
-    this.matchDurationMs = 5 * 60 * 1000;
-    this.matchStartTime = this.time.now;
+    this.matchDurationMs = Number.isFinite(Number(currentGame?.matchDurationMs))
+      ? Number(currentGame.matchDurationMs)
+      : 5 * 60 * 1000;
+    const serverStartedAt = Number(currentGame?.startedAt);
+    if (Number.isFinite(serverStartedAt)) {
+      const elapsedSinceServerStart = Math.max(0, Date.now() - serverStartedAt);
+      this.matchStartTime = this.time.now - elapsedSinceServerStart;
+    } else {
+      this.matchStartTime = this.time.now;
+    }
+    const initialRemaining = Math.max(
+      0,
+      this.matchDurationMs - (this.time.now - this.matchStartTime),
+    );
+    const initialMinutes = Math.floor(initialRemaining / 60000);
+    const initialSeconds = Math.floor((initialRemaining % 60000) / 1000);
+    const initialTimerText = `${initialMinutes}:${String(initialSeconds).padStart(2, "0")}`;
     const timerX = this.scale.width / 2;
     const timerY = 18;
     this.hud.timerText = this.add
-      .text(timerX, timerY, "5:00", {
+      .text(timerX, timerY, initialTimerText, {
         fontSize: "22px",
         fontStyle: "700",
         color: "#ffffff",
