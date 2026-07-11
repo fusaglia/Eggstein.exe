@@ -78,5 +78,3 @@ I messaggi scambiati tra **server** e **client** seguono questo schema:
 ### 🟠 Errori Client (30N)
 | Codice | Descrizione | Contenuto |
 |--------|-------------|-----------|
-
-http://25.37.171.45:3000
